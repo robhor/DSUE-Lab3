@@ -1,0 +1,113 @@
+package billing.impl;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigInteger;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import billing.BillingServer;
+import billing.BillingServerSecure;
+
+public class BillingServerImpl extends UnicastRemoteObject implements BillingServer {
+	private static final long serialVersionUID = 1718767001064054327L;
+	private static Logger logger = Logger.getLogger("BillingServerSecureImpl");
+	private Properties users;
+
+	public static void main(String[] args) {
+		// arguments: bindingName
+		if (args.length < 1) {
+			System.out.println("USAGE: java ..BillingServerImpl bindingName");
+			return;
+		}
+		String bindingName = args[0];
+		
+		// registry port
+		int port = 0;
+		try {
+			Properties props = readProperties("registry.properties");
+			port  = Integer.valueOf(props.getProperty("registry.port"));
+		} catch (NumberFormatException e) {
+			System.err.println("Bad configuration: Registry port invalid");
+		}
+		
+		try {
+			Registry reg = LocateRegistry.createRegistry(port);
+			reg.rebind(bindingName, new BillingServerImpl());
+		} catch (RemoteException e) {
+			System.err.println("Could not bind to registry!");
+			return;
+		}
+	}
+	
+	protected BillingServerImpl() throws RemoteException {
+		super();
+		users = readProperties("user.properties");
+	}
+	
+	@Override
+	public BillingServerSecure login(String username, String password) throws RemoteException {
+		logger.log(Level.FINE, String.format("Logging in as %s with pwd %s", username, password));
+				
+		if (users == null) return null;
+		String pwdhash = users.getProperty(username);
+		
+		if (pwdhash == null) {
+			logger.log(Level.INFO, "User " + username + " does not exist.");
+			return null;
+		}
+		
+		if (!pwdhash.equals(md5(password))) {
+			logger.log(Level.INFO, "Wrong password for User " + username + ".");
+			return null;
+		}
+		
+		// authorized
+		logger.log(Level.INFO, "Login as " + username + " successful.");
+		
+		BillingServerSecure bss = new BillingServerSecureImpl();
+		return bss;
+	}
+	
+	
+	private static Properties readProperties(String name) {
+		InputStream is = ClassLoader.getSystemResourceAsStream(name);
+		if (is == null) return null;
+		
+		Properties props = new Properties();
+		try {
+			props.load(is);
+		} catch (IOException e) {
+			return null;
+		} finally {
+			try {
+				is.close();
+			} catch (IOException e) {
+				logger.log(Level.WARNING, "IOException reading properties: " + e.getMessage());
+			}
+		}
+		return props;
+	}
+	
+	
+	private String md5(String str) {
+		byte[] hashb;
+		try {
+			hashb = MessageDigest.getInstance("MD5").digest(str.getBytes());
+			String hash = String.format("%1$032x", new BigInteger(1, hashb));
+			return hash;
+		} catch (NoSuchAlgorithmException e) {
+			assert false;
+		}
+		
+		return null;
+	}
+
+}
