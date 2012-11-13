@@ -13,10 +13,13 @@ import server.service.ClientManager;
 import server.service.impl.ClientManagerImpl;
 
 public class AuctionClient {
+	private static final boolean UDP_ENABLED = false;
+	
 	private static final String USAGE = "USAGE: host tcpPort udpPort";
 	private Client server;
 	
 	private Socket socket;
+	private DatagramSocket udpSocket;
 	private TCPProtocol tcpProtocol;
 
 	/**
@@ -40,6 +43,8 @@ public class AuctionClient {
 			return;
 		}
 		
+		if (!UDP_ENABLED) udpPort = 0;
+		
 		new AuctionClient(host, tcpPort, udpPort);
 	}
 	
@@ -60,8 +65,23 @@ public class AuctionClient {
 		
 		server = clManager.newClient(socket);
 		
+		tcpProtocol = new TCPProtocol(clManager);
+		tcpProtocol.setServer(server);
+		tcpProtocol.setUdpPort(udpPort);
+		
 		// open UDP socket and listen in a separate thread
-		DatagramSocket udpSocket = null;
+		if (UDP_ENABLED) setupUDP(udpPort);
+		
+		// present prompt
+		prompt();
+		
+		// clean resources
+		clManager.disconnect(server);
+		if (udpSocket != null) udpSocket.close();
+	}
+	
+	private void setupUDP(int udpPort) {
+		udpSocket = null;
 		try {
 			udpSocket = new DatagramSocket(udpPort);
 		} catch (SocketException e) {
@@ -72,17 +92,8 @@ public class AuctionClient {
 		UDPPrinter udpPrinter = new UDPPrinter(udpSocket); 
 		(new Thread(udpPrinter)).start();
 		
-		tcpProtocol = new TCPProtocol(clManager);
-		tcpProtocol.setServer(server);
-		tcpProtocol.setUdpPort(udpPort);
+		
 		tcpProtocol.setUdpProtocol(udpPrinter.getProtocol());
-		
-		// present prompt
-		prompt();
-		
-		// clean resources
-		clManager.disconnect(server);
-		udpSocket.close();
 	}
 
 	private void prompt() {

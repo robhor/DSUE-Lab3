@@ -61,7 +61,7 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	private void login(String[] tokens) {
-		if (tokens.length != 3) return;
+		if (tokens.length < 2) return;
 		
 		String name = tokens[1];
 		
@@ -75,12 +75,14 @@ public class ConnectionHandler implements Runnable {
 			clManager.sendMessage(client, TCPProtocol.RESPONSE_SUCCESS);
 		}
 		
-		int udpPort;
-		try {
-			udpPort = Integer.valueOf(tokens[2]);
-			client.setUdpPort(udpPort);
-		} catch (NumberFormatException e) {
-			logger.log(Level.INFO, "Received invalid udpPort");
+		if (tokens.length >= 3) {
+			int udpPort;
+			try {
+				udpPort = Integer.valueOf(tokens[2]);
+				client.setUdpPort(udpPort);
+			} catch (NumberFormatException e) {
+				logger.log(Level.INFO, "Received invalid udpPort");
+			}
 		}
 	}
 	
