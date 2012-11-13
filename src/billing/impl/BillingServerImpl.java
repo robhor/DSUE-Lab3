@@ -1,7 +1,5 @@
 package billing.impl;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -13,6 +11,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import util.PropertyReader;
 import billing.BillingServer;
 import billing.BillingServerSecure;
 
@@ -32,7 +31,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		// registry port
 		int port = 0;
 		try {
-			Properties props = readProperties("registry.properties");
+			Properties props = PropertyReader.readProperties("registry.properties");
 			port  = Integer.valueOf(props.getProperty("registry.port"));
 		} catch (NumberFormatException e) {
 			System.err.println("Bad configuration: Registry port invalid");
@@ -49,7 +48,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 	
 	protected BillingServerImpl() throws RemoteException {
 		super();
-		users = readProperties("user.properties");
+		users = PropertyReader.readProperties("user.properties");
 	}
 	
 	@Override
@@ -74,26 +73,6 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		
 		BillingServerSecure bss = new BillingServerSecureImpl();
 		return bss;
-	}
-	
-	
-	private static Properties readProperties(String name) {
-		InputStream is = ClassLoader.getSystemResourceAsStream(name);
-		if (is == null) return null;
-		
-		Properties props = new Properties();
-		try {
-			props.load(is);
-		} catch (IOException e) {
-			return null;
-		} finally {
-			try {
-				is.close();
-			} catch (IOException e) {
-				logger.log(Level.WARNING, "IOException reading properties: " + e.getMessage());
-			}
-		}
-		return props;
 	}
 	
 	

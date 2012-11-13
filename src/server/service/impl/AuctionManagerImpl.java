@@ -1,5 +1,6 @@
 package server.service.impl;
 
+import java.rmi.RemoteException;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Timer;
@@ -10,6 +11,7 @@ import server.bean.Auction;
 import server.bean.User;
 import server.service.AuctionManager;
 import server.service.UserManager;
+import billing.BillingServerSecure;
 import client.UDPProtocol;
 
 public class AuctionManagerImpl implements AuctionManager {
@@ -19,8 +21,12 @@ public class AuctionManagerImpl implements AuctionManager {
 	private UserManager usManager;
 	private Timer timer;
 	
-	public AuctionManagerImpl(UserManager usManager) {
+	private BillingServerSecure billingServer;
+	
+	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer) {
 		this.usManager = usManager;
+		this.billingServer = billingServer;
+		
 		auctionID = 1;
 		auctions = new TreeMap<Integer, Auction>();
 		
@@ -56,20 +62,35 @@ public class AuctionManagerImpl implements AuctionManager {
 	@Override
 	public void closeAuction(Auction auction) {
 		if (auction == null) return;
-		synchronized (this) {
+		synchronized (auctions) {
 			auctions.remove(auction.getId());
-			
-			// notify winner
-			User winner = auction.getHighestBidder();
-			String msg = null;
-			if (winner != null) {
-				msg = String.format("%s %s %.2f %s", UDPProtocol.AUCTION_END, winner.getName(), auction.getHighestBid(), auction.getName());
-				usManager.postMessage(winner, msg);
-			}
-			
-			// notify owner
-			if (winner != null && winner != auction.getOwner())
-				usManager.postMessage(auction.getOwner(), msg);
+		}
+		
+		User winner;
+		String msg = null;
+		double highestBid;
+		
+		synchronized (auction) {
+			winner = auction.getHighestBidder();
+			highestBid = auction.getHighestBid();
+		}
+		
+		// notify winner
+		if (winner != null) {
+			msg = String.format("%s %s %.2f %s", UDPProtocol.AUCTION_END, winner.getName(), highestBid, auction.getName());
+			usManager.postMessage(winner, msg);
+		}
+		
+		// notify owner
+		if (winner != null && winner != auction.getOwner())
+			usManager.postMessage(auction.getOwner(), msg);
+		
+		// bill owner
+		try {
+			if (billingServer != null)
+				billingServer.billAuction(auction.getOwner().getName(), auction.getId(), highestBid);
+		} catch (RemoteException e) {
+			// TODO log me
 		}
 	}
 

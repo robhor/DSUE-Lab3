@@ -94,8 +94,7 @@ public class ClientManagerImpl implements ClientManager {
 			String line = client.getReader().readLine();
 			return line;
 		} catch (IOException e) {
-			logger.log(Level.INFO, "Error reading from socket\n" + e);
-			System.out.println("Server closed.");
+			logger.log(Level.FINE, "Socket closed\n" + e);
 			return null;
 		}
 	}

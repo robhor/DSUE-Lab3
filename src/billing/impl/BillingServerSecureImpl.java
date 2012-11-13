@@ -68,6 +68,7 @@ public class BillingServerSecureImpl implements BillingServerSecure, Serializabl
 	@Override
 	public void billAuction(String user, long auctionID, double price)
 			throws RemoteException {
+		
 		ArrayList<BillLine> lines;
 		synchronized (bills) {
 			lines = bills.get(user);
@@ -77,14 +78,13 @@ public class BillingServerSecureImpl implements BillingServerSecure, Serializabl
 			}
 		}
 		
-		
-		// only store auctionID & price, don't store fee yet
 		/*
 		 * "For this assignment it is sufficient that you calculate the bill when the getBill
 		 * command gets executed, it doesn't matter if the pricesteps may have changed during an auction. 
 		 * If no pricesteps are present, you can assume, that there are no costs for auctions."
 		 * https://www.infosys.tuwien.ac.at/teaching/courses/dslab/forum/viewtopic.php?id=92
 		 */
+		// only store auctionID & price, don't store fee yet
 		BillLine line = new BillLine(auctionID, price, 0, 0);
 		synchronized (lines) {
 			lines.add(line);

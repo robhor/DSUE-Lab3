@@ -109,6 +109,7 @@ public class AuctionClient {
 			System.out.flush();
 		}
 		
+		System.out.println("Shutting down..");
 		scanner.close();
 	}
 	

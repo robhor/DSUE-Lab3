@@ -37,7 +37,6 @@ public class ConnectionHandler implements Runnable {
 			processMessage(input);
 		}
 		
-		
 		// close resources
 		if (user != null) usManager.disconnect(user);
 		clManager.disconnect(client);
