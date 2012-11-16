@@ -1,5 +1,6 @@
 package billing.impl;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -18,6 +19,7 @@ import billing.BillingServerSecure;
 public class BillingServerImpl extends UnicastRemoteObject implements BillingServer {
 	private static final long serialVersionUID = 1718767001064054327L;
 	private static Logger logger = Logger.getLogger("BillingServerSecureImpl");
+	
 	private Properties users;
 
 	public static void main(String[] args) {
@@ -37,12 +39,30 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 			System.err.println("Bad configuration: Registry port invalid");
 		}
 		
+		Registry registry;
+		BillingServerImpl bs;
+		
 		try {
-			Registry reg = LocateRegistry.createRegistry(port);
-			reg.rebind(bindingName, new BillingServerImpl());
+			bs = new BillingServerImpl();
+			registry = LocateRegistry.createRegistry(port);
+			registry.rebind(bindingName, bs);
 		} catch (RemoteException e) {
 			System.err.println("Could not bind to registry!");
 			return;
+		}
+		
+		// shut down when pressing enter
+		try { System.in.read();
+		} catch (IOException e) {}
+		
+		System.out.println("Shutting down...");
+		
+		// Unexport myself & registry.
+		try {
+			UnicastRemoteObject.unexportObject(registry, true);
+			UnicastRemoteObject.unexportObject(bs, true);
+		} catch (RemoteException e) {
+			logger.log(Level.WARNING, "Unexporting registry failed");
 		}
 	}
 	
@@ -88,5 +108,4 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		
 		return null;
 	}
-
 }
