@@ -5,8 +5,13 @@ package analytics.bean;
  * for analytics.
  */
 public class Session {
-	private String userName;
-	private long startTime;
+	private final String userName;
+	private final long startTime;
+	
+	public Session(String userName, long startTime) {
+		this.userName = userName;
+		this.startTime = startTime;
+	}
 	
 	/**
 	 * @return the userName
@@ -16,23 +21,9 @@ public class Session {
 	}
 	
 	/**
-	 * @param userName the userName to set
-	 */
-	public void setUserName(String userName) {
-		this.userName = userName;
-	}
-	
-	/**
 	 * @return the startTime
 	 */
 	public long getStartTime() {
 		return startTime;
-	}
-	
-	/**
-	 * @param startTime the startTime to set
-	 */
-	public void setStartTime(long startTime) {
-		this.startTime = startTime;
 	}
 }

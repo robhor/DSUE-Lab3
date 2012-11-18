@@ -5,9 +5,19 @@ package analytics.bean;
  * for analytics.
  */
 public class Auction {
-	private long ID;
-	private long startTime;
+	private final long ID;
+	private final long startTime;
 	private boolean success;
+	
+	/**
+	 * Constructor.
+	 * @param ID auction ID
+	 * @param startTime start time in millis since epoch
+	 */
+	public Auction(long ID, long startTime) {
+		this.ID = ID;
+		this.startTime = startTime;
+	}
 	
 	/**
 	 * @return the iD
@@ -17,24 +27,10 @@ public class Auction {
 	}
 	
 	/**
-	 * @param iD the iD to set
-	 */
-	public void setID(long ID) {
-		this.ID = ID;
-	}
-	
-	/**
 	 * @return the startTime
 	 */
 	public long getStartTime() {
 		return startTime;
-	}
-	
-	/**
-	 * @param startTime the startTime to set
-	 */
-	public void setStartTime(long startTime) {
-		this.startTime = startTime;
 	}
 	
 	/**

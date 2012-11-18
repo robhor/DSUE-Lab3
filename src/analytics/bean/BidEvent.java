@@ -3,10 +3,18 @@ package analytics.bean;
 public class BidEvent extends Event {
 	private static final long serialVersionUID = -7312684815832826724L;
 
-	private String userName;
-	private long auctionID;
-	private double price;
+	private final String userName;
+	private final long auctionID;
+	private final double price;
 
+	public BidEvent(String type, long timestamp, String userName,
+	                 long auctionID, double price) {
+		super(type, timestamp);
+		this.userName = userName;
+		this.auctionID = auctionID;
+		this.price = price;
+	}
+	
 	/**
 	 * @return the userName
 	 */
@@ -15,24 +23,10 @@ public class BidEvent extends Event {
 	}
 
 	/**
-	 * @param userName the userName to set
-	 */
-	public void setUserName(String userName) {
-		this.userName = userName;
-	}
-
-	/**
 	 * @return the auctionID
 	 */
 	public long getAuctionID() {
 		return auctionID;
-	}
-
-	/**
-	 * @param auctionID the auctionID to set
-	 */
-	public void setAuctionID(long auctionID) {
-		this.auctionID = auctionID;
 	}
 	
 	/**
@@ -40,12 +34,5 @@ public class BidEvent extends Event {
 	 */
 	public double getPrice() {
 		return price;
-	}
-	
-	/**
-	 * @param price the price to set
-	 */
-	public void setPrice(double price) {
-		this.price = price;
 	}
 }
