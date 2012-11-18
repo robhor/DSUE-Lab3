@@ -1,6 +1,6 @@
 package server;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -133,13 +133,15 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	private void listAuctions(String[] tokens) {
-		Collection<Auction> list = auManager.getAuctions();
+		Map<Integer, Auction> list = auManager.getAuctions();
 		SimpleDateFormat sdf = new SimpleDateFormat();
 		
-		synchronized (client) {
-			clManager.sendMessage(client, String.valueOf(list.size()));
+		String message = "";
+		
+		synchronized (list) {
+			message += list.size();
 			
-			for (Auction a : list) {
+			for (Auction a : list.values()) {
 				User bidder = a.getHighestBidder();
 				String bidderName = (bidder == null) ? "none" : bidder.getName();
 				String line = String.format("%d. '%s' by %s %s %.2f %s",
@@ -150,9 +152,11 @@ public class ConnectionHandler implements Runnable {
 						a.getHighestBid(),
 						bidderName);
 				
-				clManager.sendMessage(client, line);
+				message += "\n" + line;
 			}
 		}
+		
+		clManager.sendMessage(client, message);
 	}
 	
 	private void bid(String[] tokens) {

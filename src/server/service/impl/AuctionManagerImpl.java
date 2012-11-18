@@ -2,10 +2,13 @@ package server.service.impl;
 
 import java.rmi.RemoteException;
 import java.util.Calendar;
-import java.util.Collection;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import server.bean.Auction;
 import server.bean.User;
@@ -15,7 +18,8 @@ import billing.BillingServerSecure;
 import client.UDPProtocol;
 
 public class AuctionManagerImpl implements AuctionManager {
-	private int auctionID; /** Next free auction id */
+	private Logger logger = Logger.getLogger(AuctionManagerImpl.class.getSimpleName());
+	private AtomicInteger auctionID; /** Next free auction id */
 	private TreeMap<Integer, Auction> auctions;
 	
 	private UserManager usManager;
@@ -27,7 +31,7 @@ public class AuctionManagerImpl implements AuctionManager {
 		this.usManager = usManager;
 		this.billingServer = billingServer;
 		
-		auctionID = 1;
+		auctionID = new AtomicInteger();
 		auctions = new TreeMap<Integer, Auction>();
 		
 		timer = new Timer();
@@ -39,8 +43,10 @@ public class AuctionManagerImpl implements AuctionManager {
 		if (name == null) throw new IllegalArgumentException("Name can't be null");
 		if (duration < 0) throw new IllegalArgumentException("Duration must be at least 0 seconds!");
 		
+		int id = auctionID.incrementAndGet();
+		
 		Auction auction = new Auction();
-		auction.setId(auctionID);
+		auction.setId(id);
 		auction.setOwner(owner);
 		auction.setName(name);
 		auction.setHighestBid(0);
@@ -53,8 +59,8 @@ public class AuctionManagerImpl implements AuctionManager {
 		AuctionEndTask task = new AuctionEndTask(auction);
 		timer.schedule(task, calendar.getTime());
 		
-		synchronized (this) {
-			auctions.put(auctionID++, auction);
+		synchronized (auctions) {
+			auctions.put(id, auction);
 		}
 		return auction;
 	}
@@ -90,13 +96,13 @@ public class AuctionManagerImpl implements AuctionManager {
 			if (billingServer != null)
 				billingServer.billAuction(auction.getOwner().getName(), auction.getId(), highestBid);
 		} catch (RemoteException e) {
-			// TODO log me
+			logger.log(Level.SEVERE, "Could not bill auction: " + e.getMessage());
 		}
 	}
 
 	@Override
-	public Collection<Auction> getAuctions() {
-		return auctions.values();
+	public Map<Integer, Auction> getAuctions() {
+		return auctions;
 	}
 
 	@Override
@@ -146,6 +152,8 @@ public class AuctionManagerImpl implements AuctionManager {
 
 	@Override
 	public Auction getAuctionById(int id) {
-		return auctions.get(id);
+		synchronized (auctions) {
+			return auctions.get(id);
+		}
 	}
 }

@@ -29,7 +29,8 @@ public class ConnectionDispatcher implements Runnable {
 	
 	@Override
 	public void run() {
-		ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(9);
+		ExecutorService executor = java.util.concurrent.Executors.newCachedThreadPool();
+				//java.util.concurrent.Executors.newFixedThreadPool(9); // this severly limits load test capabilities ^^
 		
 		// Listen to Connections
 		while (true) {
