@@ -9,7 +9,7 @@ import java.util.UUID;
 
 import analytics.AnalyticsException;
 import analytics.Subscriber;
-import analytics.bean.Event;
+import analytics.event.Event;
 
 /**
  * Maintains a list of connected subscribers to the analytics service.

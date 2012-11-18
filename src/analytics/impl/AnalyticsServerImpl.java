@@ -6,17 +6,17 @@ import analytics.AnalyticsException;
 import analytics.AnalyticsServer;
 import analytics.Subscriber;
 import analytics.bean.Auction;
-import analytics.bean.AuctionEvent;
 import analytics.bean.Auctions;
-import analytics.bean.BidEvent;
-import analytics.bean.Event;
 import analytics.bean.Session;
 import analytics.bean.Sessions;
 import analytics.bean.SessionStats;
 import analytics.bean.AuctionStats;
 import analytics.bean.BidStats;
-import analytics.bean.StatisticsEvent;
-import analytics.bean.UserEvent;
+import analytics.event.AuctionEvent;
+import analytics.event.BidEvent;
+import analytics.event.Event;
+import analytics.event.StatisticsEvent;
+import analytics.event.UserEvent;
 
 /**
  * This is the main business logic class for the analytics server.

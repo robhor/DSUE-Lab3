@@ -1,4 +1,5 @@
-package analytics.bean;
+package analytics.event;
+
 
 /**
  * An event that is produced from the accumulated information from

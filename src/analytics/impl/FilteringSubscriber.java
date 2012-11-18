@@ -3,7 +3,7 @@ package analytics.impl;
 import java.rmi.RemoteException;
 
 import analytics.Subscriber;
-import analytics.bean.Event;
+import analytics.event.Event;
 
 /**
  * Wrapper class for subscribers which swallows all events that do

@@ -1,4 +1,5 @@
-package analytics.bean;
+package analytics.event;
+
 
 /**
  * An event that concerns a user and their session.

@@ -3,7 +3,7 @@ package analytics;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-import analytics.bean.Event;
+import analytics.event.Event;
 
 /**
  * Subscribers to the AnalyticsServer must implement this

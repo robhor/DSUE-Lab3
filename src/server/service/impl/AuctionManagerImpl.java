@@ -11,6 +11,9 @@ import server.bean.Auction;
 import server.bean.User;
 import server.service.AuctionManager;
 import server.service.UserManager;
+import analytics.event.AuctionEvent;
+import analytics.event.BidEvent;
+import analytics.event.Event;
 import billing.BillingServerSecure;
 import client.UDPProtocol;
 
@@ -20,12 +23,14 @@ public class AuctionManagerImpl implements AuctionManager {
 	
 	private UserManager usManager;
 	private Timer timer;
-	
+
 	private BillingServerSecure billingServer;
+	private AnalyticsServerWrapper analyticsServer;
 	
-	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer) {
+	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer, AnalyticsServerWrapper analyticsServer) {
 		this.usManager = usManager;
 		this.billingServer = billingServer;
+		this.analyticsServer = analyticsServer;
 		
 		auctionID = 1;
 		auctions = new TreeMap<Integer, Auction>();
@@ -56,6 +61,11 @@ public class AuctionManagerImpl implements AuctionManager {
 		synchronized (this) {
 			auctions.put(auctionID++, auction);
 		}
+
+		// notify analytics
+		Event event = new AuctionEvent("AUCTION_STARTED", System.currentTimeMillis(), auction.getId());
+		analyticsServer.processEvent(event);
+		
 		return auction;
 	}
 
@@ -74,6 +84,12 @@ public class AuctionManagerImpl implements AuctionManager {
 			winner = auction.getHighestBidder();
 			highestBid = auction.getHighestBid();
 		}
+
+		// notify analytics
+		Event event = new BidEvent("BID_WON", System.currentTimeMillis(), winner.getName(), auction.getId(), highestBid);
+		analyticsServer.processEvent(event);
+		event = new AuctionEvent("AUCTION_ENDED", System.currentTimeMillis(), auction.getId());
+		analyticsServer.processEvent(event);
 		
 		// notify winner
 		if (winner != null) {
@@ -105,21 +121,28 @@ public class AuctionManagerImpl implements AuctionManager {
 		if (auction == null) throw new IllegalArgumentException("Auction can't be null!");
 		if (amount <= 0) throw new IllegalArgumentException("Must bid at least 0.01 units of currency!");
 		
-		boolean success = false;
-		synchronized (auction) {
-			if (amount > auction.getHighestBid()) {
-				if (auction.getHighestBidder() != null && auction.getHighestBidder() != bidder) {
-					String msg = UDPProtocol.OVERBID + " " + auction.getName();
-					usManager.postMessage(auction.getHighestBidder(), msg);
-				}
-				auction.setHighestBid(amount);
-				auction.setHighestBidder(bidder);
-				
-				success = true;
-			}
-		}
+		boolean overbid = false;
 		
-		return success;
+		synchronized (auction) {
+			if (amount < auction.getHighestBid()) {
+				return false;
+			}
+			
+			if (auction.getHighestBidder() != null && auction.getHighestBidder() != bidder) {
+				String msg = UDPProtocol.OVERBID + " " + auction.getName();
+				usManager.postMessage(auction.getHighestBidder(), msg);
+				overbid = true;
+			}
+			auction.setHighestBid(amount);
+			auction.setHighestBidder(bidder);
+		}
+
+		// notify analytics
+		String eventType = overbid ? "BID_OVERBID" : "BID_PLACED";
+		Event event = new BidEvent(eventType, System.currentTimeMillis(), bidder.getName(), auction.getId(), amount);
+		analyticsServer.processEvent(event);
+		
+		return true;
 	}
 	
 	

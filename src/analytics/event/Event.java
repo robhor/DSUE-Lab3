@@ -1,4 +1,4 @@
-package analytics.bean;
+package analytics.event;
 
 import java.io.Serializable;
 import java.util.UUID;

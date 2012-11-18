@@ -3,7 +3,7 @@ package analytics;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-import analytics.bean.Event;
+import analytics.event.Event;
 
 /**
  * The analytics server processes auction events and
