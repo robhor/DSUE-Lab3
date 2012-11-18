@@ -1,12 +1,15 @@
 package server.service.impl;
 
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Map;
+import java.util.Collection;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,6 +29,10 @@ public class AuctionManagerImpl implements AuctionManager {
 	private Timer timer;
 	
 	private BillingServerSecure billingServer;
+	
+	private ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+	private Lock readLock = readWriteLock.readLock();
+	private Lock writeLock = readWriteLock.writeLock();
 	
 	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer) {
 		this.usManager = usManager;
@@ -59,17 +66,25 @@ public class AuctionManagerImpl implements AuctionManager {
 		AuctionEndTask task = new AuctionEndTask(auction);
 		timer.schedule(task, calendar.getTime());
 		
-		synchronized (auctions) {
+		writeLock.lock();
+		try {
 			auctions.put(id, auction);
+		} finally {
+			writeLock.unlock();
 		}
+		
 		return auction;
 	}
 
 	@Override
 	public void closeAuction(Auction auction) {
 		if (auction == null) return;
-		synchronized (auctions) {
+		
+		writeLock.lock();
+		try {
 			auctions.remove(auction.getId());
+		} finally {
+			writeLock.unlock();
 		}
 		
 		User winner;
@@ -101,8 +116,13 @@ public class AuctionManagerImpl implements AuctionManager {
 	}
 
 	@Override
-	public Map<Integer, Auction> getAuctions() {
-		return auctions;
+	public Collection<Auction> getAuctions() {
+		readLock.lock();
+		try {
+			return new ArrayList<Auction>(auctions.values());
+		} finally {
+			readLock.unlock();
+		}
 	}
 
 	@Override
@@ -152,8 +172,11 @@ public class AuctionManagerImpl implements AuctionManager {
 
 	@Override
 	public Auction getAuctionById(int id) {
-		synchronized (auctions) {
+		readLock.lock();
+		try {
 			return auctions.get(id);
+		} finally {
+			readLock.unlock();
 		}
 	}
 }

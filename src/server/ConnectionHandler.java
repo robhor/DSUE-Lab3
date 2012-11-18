@@ -1,6 +1,6 @@
 package server;
 import java.text.SimpleDateFormat;
-import java.util.Map;
+import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -133,30 +133,25 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	private void listAuctions(String[] tokens) {
-		Map<Integer, Auction> list = auManager.getAuctions();
+		Collection<Auction> list = auManager.getAuctions();
 		SimpleDateFormat sdf = new SimpleDateFormat();
 		
-		String message = "";
+	
+		clManager.sendMessage(client, String.valueOf(list.size()));
 		
-		synchronized (list) {
-			message += list.size();
+		for (Auction a : list) {
+			User bidder = a.getHighestBidder();
+			String bidderName = (bidder == null) ? "none" : bidder.getName();
+			String line = String.format("%d. '%s' by %s %s %.2f %s",
+					a.getId(),
+					a.getName(),
+					a.getOwner().getName(),
+					sdf.format(a.getEndTime().getTime()),
+					a.getHighestBid(),
+					bidderName);
 			
-			for (Auction a : list.values()) {
-				User bidder = a.getHighestBidder();
-				String bidderName = (bidder == null) ? "none" : bidder.getName();
-				String line = String.format("%d. '%s' by %s %s %.2f %s",
-						a.getId(),
-						a.getName(),
-						a.getOwner().getName(),
-						sdf.format(a.getEndTime().getTime()),
-						a.getHighestBid(),
-						bidderName);
-				
-				message += "\n" + line;
-			}
+			clManager.sendMessage(client, line);
 		}
-		
-		clManager.sendMessage(client, message);
 	}
 	
 	private void bid(String[] tokens) {

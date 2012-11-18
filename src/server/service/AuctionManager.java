@@ -1,6 +1,6 @@
 package server.service;
 
-import java.util.Map;
+import java.util.Collection;
 
 import server.bean.Auction;
 import server.bean.User;
@@ -28,7 +28,7 @@ public interface AuctionManager {
 	/**
 	 * @return a list of currently active auctions
 	 */
-	Map<Integer, Auction> getAuctions();
+	Collection<Auction> getAuctions();
 	
 	/**
 	 * @return the auction with the given id
