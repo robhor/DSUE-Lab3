@@ -1,6 +1,6 @@
 package analytics.impl;
 
-import java.rmi.RemoteException;
+import java.util.UUID;
 
 import analytics.AnalyticsException;
 import analytics.AnalyticsServer;
@@ -18,14 +18,39 @@ import analytics.bean.BidStats;
 import analytics.bean.StatisticsEvent;
 import analytics.bean.UserEvent;
 
+/**
+ * This is the main business logic class for the analytics server.
+ * It handles (un-)subscriptions from clients and events from
+ * the auction server in a thread-safe manner.
+ * 
+ * Synchronization is grouped into the objects which are affected
+ * by the event to be processed:
+ * ------------------------------------------------------------
+ * | Event type        | Synchronizes on
+ * ------------------------------------------------------------
+ * | AUCTION_STARTED   | auctions 
+ * | AUCTION_ENDED     | auctions, auctionStats
+ * | USER_LOGIN        | sessions
+ * | USER_LOGOUT       | sessions, sessionStats
+ * | USER_DISCONNECTED | sessions, sessionStats
+ * | BID_PLACED        | auctions, bidStats
+ * | BID_OVERBID       | bidStats
+ * | BID_WON           | bidStats
+ * ------------------------------------------------------------
+ */
 public class AnalyticsServerImpl implements AnalyticsServer {
+	private Subscribers subscribers;
 	private Auctions auctions;
 	private Sessions sessions;
 	private AuctionStats auctionStats;
 	private SessionStats sessionStats;
 	private BidStats bidStats;
 	
+	/**
+	 * Constructor.
+	 */
 	public AnalyticsServerImpl() {
+		subscribers = new Subscribers();
 		auctions = new Auctions();
 		sessions = new Sessions();
 		auctionStats = new AuctionStats();
@@ -33,15 +58,36 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		bidStats = new BidStats();
 	}
 
+	/**
+	 * Adds a subscriber to the list of subscribers.
+	 * @param filter Regular expression filter for events
+	 * @param subscriber Subscriber
+	 * @return A unique subscription identifier string to be used for unsubscribing
+	 */
 	@Override
-	public String subscribe(String filter, Subscriber subscriber)
-			throws RemoteException {
-		// TODO Auto-generated method stub
-		return null;
+	public String subscribe(String filter, Subscriber subscriber) {
+		Subscriber filteringSubscriber = new FilteringSubscriber(filter, subscriber);
+		return subscribers.add(filteringSubscriber).toString();
 	}
 
+	/**
+	 * Processes an event. Even though this method is thread-safe,
+	 * some events which depend on each other must not be called
+	 * out of sequence! A dependent event can only be processed
+	 * after the processEvent() call for its dependency has
+	 * returned.
+	 * This affects:
+	 * AUCTION_STARTED > [BID_PLACED] > AUCTION_ENDED
+	 * BID_PLACED > [BID_OVERBID] > BID_WON
+	 * USER_LOGIN > (USER_LOGOUT | USER_DISCONNECTED)
+	 * 
+	 * @param event The event
+	 * @throws AnalyticsException if the passed event contains invalid input
+	 */
 	@Override
-	public void processEvent(Event event) throws RemoteException, AnalyticsException {
+	public void processEvent(Event event) throws AnalyticsException {
+		publish(event); // forward
+		
 		if ("AUCTION_STARTED".equals(event.getType())) {
 			processAuctionStarted((AuctionEvent)event);
 		} else
@@ -70,10 +116,15 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		}
 	}
 
+	/**
+	 * Removes a subscription.
+	 * @param identifier The unique subscription identifier previously
+	 *                    returned from subscribe() 
+	 * @throws AnalyticsException if the identifier could not be found among the subscriptions
+	 */
 	@Override
-	public void unsubscribe(String identifier) throws RemoteException {
-		// TODO Auto-generated method stub
-		
+	public void unsubscribe(String identifier) throws AnalyticsException {
+		subscribers.remove(UUID.fromString(identifier));
 	}
 	
 	/**
@@ -81,9 +132,13 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 	 * @param event The event
 	 */
 	private void publish(Event event) {
-		
+		subscribers.publish(event);
 	}
 
+	/**
+	 * Processes an AUCTION_STARTED event.
+	 * @param event The event
+	 */
 	private void processAuctionStarted(AuctionEvent event) {
 		Auction auction = new Auction(event.getAuctionID(), event.getTimestamp());
 		
@@ -92,11 +147,21 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		}
 	}
 
-	private void processAuctionEnded(AuctionEvent event) {
+	/**
+	 * Processes an AUCTION_ENDED event.
+	 * @param event The event
+	 * @throws AnalyticsException if the auctionID in the event is invalid
+	 */
+	private void processAuctionEnded(AuctionEvent event) throws AnalyticsException {
+		long auctionID = event.getAuctionID();
 		Auction auction;
 		
 		synchronized(auctions) {
-			auction = auctions.remove(event.getAuctionID());
+			auction = auctions.remove(auctionID);
+		}
+		
+		if (null == auction) {
+			throw new AnalyticsException(String.format("Invalid auctionID: \"%s\"", auctionID));
 		}
 		
 		long auctionTime = event.getTimestamp() - auction.getStartTime();
@@ -115,13 +180,29 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		publish(ratioEvent);
 	}
 
-	private void processUserLogin(UserEvent event) {
+	/**
+	 * Processes a USER_LOGIN event.
+	 * @param event The event
+	 * @throws AnalyticsException if the user name is already associated with a running session
+	 */
+	private void processUserLogin(UserEvent event) throws AnalyticsException {
 		Session session = new Session(event.getUserName(), event.getTimestamp());
 		sessions.add(session); // thread-safe
 	}
 
-	private void processUserLogout(UserEvent event) {
-		Session session = sessions.remove(event.getUserName()); // thread-safe
+	/**
+	 * Processes a USER_LOGOUT event.
+	 * @param event The event
+	 * @throws AnalyticsException if the user name could not be found among the running sessions
+	 */
+	private void processUserLogout(UserEvent event) throws AnalyticsException {
+		String userName = event.getUserName();
+		Session session = sessions.remove(userName); // thread-safe
+		
+		if (null == session) {
+			throw new AnalyticsException(String.format("User \"%s\" has no session.", userName));
+		}
+		
 		long time = event.getTimestamp() - session.getStartTime();
 		double prevMin;
 		double prevMax;
@@ -148,19 +229,33 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		publish(avgEvent);
 	}
 
-	private void processBidPlaced(BidEvent event) {
+	/**
+	 * Processes a BID_PLACED event.
+	 * @param event The event
+	 * @throws AnalyticsException if the auction ID is invalid
+	 */
+	private void processBidPlaced(BidEvent event) throws AnalyticsException {
 		synchronized(auctions) {
 			auctions.setSuccessful(event.getAuctionID());
 		}
 		
-		processBid(event.getPrice());
+		processBid(event.getPrice(), event.getTimestamp());
 	}
 
+	/**
+	 * Processes a BID_OVERBID event.
+	 * @param event The event
+	 */
 	private void processBidOverbid(BidEvent event) {
-		processBid(event.getPrice());
+		processBid(event.getPrice(), event.getTimestamp());
 	}
-	
-	private void processBid(double price) {
+
+	/**
+	 * Processes a bid-related event which affects the bid stats.
+	 * @param price Bidding amount
+	 * @param timestamp Time of event occurence
+	 */
+	private void processBid(double price, long timestamp) {
 		double prevMax;
 		double bidsPerMin;
 		
@@ -171,14 +266,18 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		}
 		
 		if (price > prevMax) {
-			StatisticsEvent maxEvent = new StatisticsEvent("BID_PRICE_MAX", event.getTimestamp(), price);
+			StatisticsEvent maxEvent = new StatisticsEvent("BID_PRICE_MAX", timestamp, price);
 			publish(maxEvent);
 		}
 
-		StatisticsEvent bpmEvent = new StatisticsEvent("BID_COUNT_PER_MINUTE", event.getTimestamp(), bidsPerMin);
+		StatisticsEvent bpmEvent = new StatisticsEvent("BID_COUNT_PER_MINUTE", timestamp, bidsPerMin);
 		publish(bpmEvent);
 	}
 
+	/**
+	 * Processes a BID_WON event.
+	 * @param event The event
+	 */
 	private void processBidWon(BidEvent event) {
 		// do nothing with this type of event
 	}

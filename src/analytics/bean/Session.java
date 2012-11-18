@@ -8,6 +8,11 @@ public class Session {
 	private final String userName;
 	private final long startTime;
 	
+	/**
+	 * Constructor.
+	 * @param userName Name of the session user
+	 * @param startTime Session start time
+	 */
 	public Session(String userName, long startTime) {
 		this.userName = userName;
 		this.startTime = startTime;

@@ -20,7 +20,7 @@ public class Auction {
 	}
 	
 	/**
-	 * @return the iD
+	 * @return the ID
 	 */
 	public long getID() {
 		return ID;

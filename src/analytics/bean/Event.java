@@ -3,6 +3,10 @@ package analytics.bean;
 import java.io.Serializable;
 import java.util.UUID;
 
+/**
+ * Any of the events that are either fired by the auction server
+ * or calculated statistics by the analytics server.
+ */
 public class Event implements Serializable {
 	private static final long serialVersionUID = 4632651216851811931L;
 	
@@ -10,7 +14,11 @@ public class Event implements Serializable {
 	private final String type;
 	private final long timestamp;
 	
-	
+	/**
+	 * Constructor
+	 * @param type Event type string
+	 * @param timestamp Time of event occurence
+	 */
 	public Event(String type, long timestamp) {
 		ID = UUID.randomUUID().toString();
 		this.type = type;
@@ -18,7 +26,7 @@ public class Event implements Serializable {
 	}
 	
 	/**
-	 * @return the iD
+	 * @return the ID
 	 */
 	public String getID() {
 		return ID;

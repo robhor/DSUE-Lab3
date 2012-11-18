@@ -10,5 +10,10 @@ import analytics.bean.Event;
  * interface. Subscribers must be thread-safe.
  */
 public interface Subscriber extends Remote {
+	/**
+	 * Process an event.
+	 * @param event The event
+	 * @throws RemoteException if a remoting error occurs
+	 */
 	void processEvent(Event event) throws RemoteException;
 }

@@ -1,10 +1,19 @@
 package analytics.bean;
 
+/**
+ * An event that concerns a user and their session.
+ */
 public class UserEvent extends Event {
 	private static final long serialVersionUID = -8856986652864055911L;
 
 	private final String userName;
 
+	/**
+	 * Constructor.
+	 * @param type Event type string
+	 * @param timestamp Time of event occurence
+	 * @param userName Name of the user
+	 */
 	public UserEvent(String type, long timestamp, String userName) {
 		super(type, timestamp);
 		this.userName = userName;

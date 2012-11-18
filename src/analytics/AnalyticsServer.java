@@ -42,5 +42,5 @@ public interface AnalyticsServer extends Remote {
 	 *                    returned from subscribe() 
 	 * @throws RemoteException if a remoting error occurs
 	 */
-	void unsubscribe(String identifier) throws RemoteException;
+	void unsubscribe(String identifier) throws RemoteException, AnalyticsException;
 }
