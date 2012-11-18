@@ -186,7 +186,7 @@ public class ConnectionHandler implements Runnable {
 		
 		boolean success = auManager.bid(user, auction, amount);
 		String msg = (success) ? TCPProtocol.RESPONSE_SUCCESS : TCPProtocol.RESPONSE_FAIL;
-		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getHighestBidder().getName());
+		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getName());
 		usManager.sendMessage(user, msg);
 	}
 }
