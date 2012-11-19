@@ -136,22 +136,21 @@ public class ConnectionHandler implements Runnable {
 		Collection<Auction> list = auManager.getAuctions();
 		SimpleDateFormat sdf = new SimpleDateFormat();
 		
-		synchronized (client) {
-			clManager.sendMessage(client, String.valueOf(list.size()));
+	
+		clManager.sendMessage(client, String.valueOf(list.size()));
+		
+		for (Auction a : list) {
+			User bidder = a.getHighestBidder();
+			String bidderName = (bidder == null) ? "none" : bidder.getName();
+			String line = String.format("%d. '%s' by %s %s %.2f %s",
+					a.getId(),
+					a.getName(),
+					a.getOwner().getName(),
+					sdf.format(a.getEndTime().getTime()),
+					a.getHighestBid(),
+					bidderName);
 			
-			for (Auction a : list) {
-				User bidder = a.getHighestBidder();
-				String bidderName = (bidder == null) ? "none" : bidder.getName();
-				String line = String.format("%d. '%s' by %s %s %.2f %s",
-						a.getId(),
-						a.getName(),
-						a.getOwner().getName(),
-						sdf.format(a.getEndTime().getTime()),
-						a.getHighestBid(),
-						bidderName);
-				
-				clManager.sendMessage(client, line);
-			}
+			clManager.sendMessage(client, line);
 		}
 	}
 	
@@ -187,7 +186,7 @@ public class ConnectionHandler implements Runnable {
 		
 		boolean success = auManager.bid(user, auction, amount);
 		String msg = (success) ? TCPProtocol.RESPONSE_SUCCESS : TCPProtocol.RESPONSE_FAIL;
-		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getHighestBidder().getName());
+		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getName());
 		usManager.sendMessage(user, msg);
 	}
 }

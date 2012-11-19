@@ -1,11 +1,17 @@
 package server.service.impl;
 
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import server.bean.Auction;
 import server.bean.User;
@@ -18,7 +24,8 @@ import billing.BillingServerSecure;
 import client.UDPProtocol;
 
 public class AuctionManagerImpl implements AuctionManager {
-	private int auctionID; /** Next free auction id */
+	private Logger logger = Logger.getLogger(AuctionManagerImpl.class.getSimpleName());
+	private AtomicInteger auctionID; /** Next free auction id */
 	private TreeMap<Integer, Auction> auctions;
 	
 	private UserManager usManager;
@@ -27,12 +34,16 @@ public class AuctionManagerImpl implements AuctionManager {
 	private BillingServerSecure billingServer;
 	private AnalyticsServerWrapper analyticsServer;
 	
+	private ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+	private Lock readLock = readWriteLock.readLock();
+	private Lock writeLock = readWriteLock.writeLock();
+
 	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer, AnalyticsServerWrapper analyticsServer) {
 		this.usManager = usManager;
 		this.billingServer = billingServer;
 		this.analyticsServer = analyticsServer;
 		
-		auctionID = 1;
+		auctionID = new AtomicInteger();
 		auctions = new TreeMap<Integer, Auction>();
 		
 		timer = new Timer();
@@ -44,8 +55,10 @@ public class AuctionManagerImpl implements AuctionManager {
 		if (name == null) throw new IllegalArgumentException("Name can't be null");
 		if (duration < 0) throw new IllegalArgumentException("Duration must be at least 0 seconds!");
 		
+		int id = auctionID.incrementAndGet();
+		
 		Auction auction = new Auction();
-		auction.setId(auctionID);
+		auction.setId(id);
 		auction.setOwner(owner);
 		auction.setName(name);
 		auction.setHighestBid(0);
@@ -58,8 +71,11 @@ public class AuctionManagerImpl implements AuctionManager {
 		AuctionEndTask task = new AuctionEndTask(auction);
 		timer.schedule(task, calendar.getTime());
 		
-		synchronized (this) {
-			auctions.put(auctionID++, auction);
+		writeLock.lock();
+		try {
+			auctions.put(id, auction);
+		} finally {
+			writeLock.unlock();
 		}
 
 		// notify analytics
@@ -72,8 +88,12 @@ public class AuctionManagerImpl implements AuctionManager {
 	@Override
 	public void closeAuction(Auction auction) {
 		if (auction == null) return;
-		synchronized (auctions) {
+		
+		writeLock.lock();
+		try {
 			auctions.remove(auction.getId());
+		} finally {
+			writeLock.unlock();
 		}
 		
 		User winner;
@@ -108,13 +128,18 @@ public class AuctionManagerImpl implements AuctionManager {
 			if (billingServer != null)
 				billingServer.billAuction(auction.getOwner().getName(), auction.getId(), highestBid);
 		} catch (RemoteException e) {
-			// TODO log me
+			logger.log(Level.SEVERE, "Could not bill auction: " + e.getMessage());
 		}
 	}
 
 	@Override
 	public Collection<Auction> getAuctions() {
-		return auctions.values();
+		readLock.lock();
+		try {
+			return new ArrayList<Auction>(auctions.values());
+		} finally {
+			readLock.unlock();
+		}
 	}
 
 	@Override
@@ -171,6 +196,11 @@ public class AuctionManagerImpl implements AuctionManager {
 
 	@Override
 	public Auction getAuctionById(int id) {
-		return auctions.get(id);
+		readLock.lock();
+		try {
+			return auctions.get(id);
+		} finally {
+			readLock.unlock();
+		}
 	}
 }
