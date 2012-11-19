@@ -85,17 +85,19 @@ public class AuctionManagerImpl implements AuctionManager {
 			highestBid = auction.getHighestBid();
 		}
 
-		// notify analytics
-		Event event = new BidEvent("BID_WON", System.currentTimeMillis(), winner.getName(), auction.getId(), highestBid);
-		analyticsServer.processEvent(event);
-		event = new AuctionEvent("AUCTION_ENDED", System.currentTimeMillis(), auction.getId());
-		analyticsServer.processEvent(event);
 		
 		// notify winner
 		if (winner != null) {
 			msg = String.format("%s %s %.2f %s", UDPProtocol.AUCTION_END, winner.getName(), highestBid, auction.getName());
 			usManager.postMessage(winner, msg);
+			
+			Event event = new BidEvent("BID_WON", System.currentTimeMillis(), winner.getName(), auction.getId(), highestBid);
+			analyticsServer.processEvent(event);
 		}
+
+		// notify analytics
+		Event event = new AuctionEvent("AUCTION_ENDED", System.currentTimeMillis(), auction.getId());
+		analyticsServer.processEvent(event);
 		
 		// notify owner
 		if (winner != null && winner != auction.getOwner())

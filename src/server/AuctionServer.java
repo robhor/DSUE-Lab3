@@ -114,7 +114,7 @@ public class AuctionServer {
 		
 		// logout all users
 		for(User u : usManager.getUsers()) {
-			usManager.logout(u);
+			if (u.getClient() != null) usManager.logout(u);
 		}
 		clManager.disconnectAll();
 		auManager.shutdown();

@@ -1,6 +1,15 @@
 package analytics.impl;
 
+import java.io.IOException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Logger;
+
+import util.PropertyReader;
 
 import analytics.AnalyticsException;
 import analytics.AnalyticsServer;
@@ -38,7 +47,11 @@ import analytics.event.UserEvent;
  * | BID_WON           | bidStats
  * ------------------------------------------------------------
  */
-public class AnalyticsServerImpl implements AnalyticsServer {
+public class AnalyticsServerImpl extends UnicastRemoteObject implements AnalyticsServer {
+	private static final long serialVersionUID = 6388407827917970751L;
+	
+	private static final Logger logger = Logger.getLogger("AnalyticsServerImpl");
+	
 	private Subscribers subscribers;
 	private Auctions auctions;
 	private Sessions sessions;
@@ -48,8 +61,11 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 	
 	/**
 	 * Constructor.
+	 * @throws RemoteException if the parent constructor failed
 	 */
-	public AnalyticsServerImpl() {
+	public AnalyticsServerImpl() throws RemoteException {
+		super();
+		
 		subscribers = new Subscribers();
 		auctions = new Auctions();
 		sessions = new Sessions();
@@ -86,6 +102,8 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 	 */
 	@Override
 	public void processEvent(Event event) throws AnalyticsException {
+		logger.info(String.format("processEvent(%s)", event));
+		
 		publish(event); // forward
 		
 		if ("AUCTION_STARTED".equals(event.getType())) {
@@ -132,6 +150,8 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 	 * @param event The event
 	 */
 	private void publish(Event event) {
+		logger.info(String.format("publish(%s)", event));
+		
 		subscribers.publish(event);
 	}
 
@@ -200,7 +220,7 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 		Session session = sessions.remove(userName); // thread-safe
 		
 		if (null == session) {
-			throw new AnalyticsException(String.format("User \"%s\" has no session.", userName));
+			throw new AnalyticsException(String.format("Failed to log out user \"%s\" who has no session.", userName));
 		}
 		
 		long time = event.getTimestamp() - session.getStartTime();
@@ -280,5 +300,34 @@ public class AnalyticsServerImpl implements AnalyticsServer {
 	 */
 	private void processBidWon(BidEvent event) {
 		// do nothing with this type of event
+	}
+	
+	/**
+	 * Main method.
+	 * @param args The program argument (binding name)
+	 * @throws IOException if there was an I/O error
+	 */
+	public static void main(String[] args) throws IOException {
+		// arguments: bindingName
+		if (args.length != 1) {
+			System.out.println("USAGE: java ..AnalyticsServerImpl bindingName");
+			return;
+		}
+		String bindingName = args[0];
+		
+		// registry port
+		Properties props = PropertyReader.readProperties("registry.properties");
+		String host  = props.getProperty("registry.host");
+		int port  = Integer.valueOf(props.getProperty("registry.port"));
+		Registry registry = LocateRegistry.getRegistry(host, port);
+		AnalyticsServerImpl as = new AnalyticsServerImpl();
+		registry.rebind(bindingName, as);
+		
+		// shut down when pressing enter
+		System.in.read();
+		System.out.println("Shutting down...");
+		
+		// Unexport myself & registry.
+		UnicastRemoteObject.unexportObject(as, true);
 	}
 }

@@ -26,4 +26,13 @@ public class UserEvent extends Event {
 	public String getUserName() {
 		return userName;
 	}
+	
+	/**
+	 * Produces a string representation of the event.
+	 * Used for logging.
+	 * @return The event string
+	 */
+	public String toString() {
+		return String.format("%s userName=%s", super.toString(), getUserName());
+	}
 }

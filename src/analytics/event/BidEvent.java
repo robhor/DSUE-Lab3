@@ -47,4 +47,13 @@ public class BidEvent extends Event {
 	public double getPrice() {
 		return price;
 	}
+	
+	/**
+	 * Produces a string representation of the event.
+	 * Used for logging.
+	 * @return The event string
+	 */
+	public String toString() {
+		return String.format("%s userName=%s auctionID=%s price=%s", super.toString(), getUserName(), getAuctionID(), getPrice());
+	}
 }

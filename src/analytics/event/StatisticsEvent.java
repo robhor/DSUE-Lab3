@@ -27,4 +27,13 @@ public class StatisticsEvent extends Event {
 	public double getValue() {
 		return value;
 	}
+	
+	/**
+	 * Produces a string representation of the event.
+	 * Used for logging.
+	 * @return The event string
+	 */
+	public String toString() {
+		return String.format("%s value=%s", super.toString(), getValue());
+	}
 }

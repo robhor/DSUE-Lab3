@@ -26,4 +26,13 @@ public class AuctionEvent extends Event {
 	public long getAuctionID() {
 		return auctionID;
 	}
+	
+	/**
+	 * Produces a string representation of the event.
+	 * Used for logging.
+	 * @return The event string
+	 */
+	public String toString() {
+		return String.format("%s auctionID=%s", super.toString(), getAuctionID());
+	}
 }
