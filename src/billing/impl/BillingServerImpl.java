@@ -2,12 +2,14 @@ package billing.impl;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,7 +23,9 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 	private static Logger logger = Logger.getLogger("BillingServerSecureImpl");
 	
 	private Properties users;
-
+	private int port;
+	private static ArrayList<Remote> secureInstances;
+	
 	public static void main(String[] args) {
 		// arguments: bindingName
 		if (args.length < 1) {
@@ -43,7 +47,8 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		BillingServerImpl bs;
 		
 		try {
-			bs = new BillingServerImpl();
+			secureInstances = new ArrayList<Remote>();
+			bs = new BillingServerImpl(port);
 			registry = LocateRegistry.createRegistry(port);
 			registry.rebind(bindingName, bs);
 		} catch (RemoteException e) {
@@ -61,13 +66,18 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		try {
 			UnicastRemoteObject.unexportObject(registry, true);
 			UnicastRemoteObject.unexportObject(bs, true);
+			for (Remote r : secureInstances) {
+				UnicastRemoteObject.unexportObject(r, true);
+			}
 		} catch (RemoteException e) {
 			logger.log(Level.WARNING, "Unexporting registry failed");
+			e.printStackTrace();
 		}
 	}
 	
-	protected BillingServerImpl() throws RemoteException {
+	protected BillingServerImpl(int port) throws RemoteException {
 		super();
+		this.port = port;
 		users = PropertyReader.readProperties("user.properties");
 	}
 	
@@ -92,6 +102,8 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		logger.log(Level.INFO, "Login as " + username + " successful.");
 		
 		BillingServerSecure bss = new BillingServerSecureImpl();
+		secureInstances.add(bss);
+		bss = (BillingServerSecure) UnicastRemoteObject.exportObject(bss, port);
 		return bss;
 	}
 	

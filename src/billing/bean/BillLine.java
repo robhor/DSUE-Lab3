@@ -1,10 +1,7 @@
 package billing.bean;
 
-import java.io.Serializable;
 
-public class BillLine implements Serializable {
-	private static final long serialVersionUID = -2012798801569746633L;
-	
+public class BillLine {
 	private long auctionID;
 	private double strikePrice, fixedFee, variableFee;
 	
