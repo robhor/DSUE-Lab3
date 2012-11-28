@@ -1,11 +1,11 @@
 package mgmtclient;
 
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
-import analytics.AnalyticsException;
-import analytics.AnalyticsServer;
 import analytics.Subscriber;
 import analytics.event.Event;
 
@@ -13,29 +13,23 @@ import analytics.event.Event;
  * Handles all notifications from the analytics server.
  * Incoming events are printed to the console when necessary.
  */
-public class EventSink implements Subscriber {
+public class EventSink extends UnicastRemoteObject implements Subscriber {
+	private static final long serialVersionUID = 4677349532143227976L;
+
+	private static final Logger logger = Logger.getLogger("EventSink");
+	
 	private static final int DEDUP_BUFSIZE = 10;
 	
-	private AnalyticsServer analyticsServer;
 	private List<Event> hideBuffer; // messages to be printed
 	private Event[] dedupBuffer; // memory of events for deduplication
 	private int dedupCursor; // current position in buffer
 	private volatile boolean auto; // print messages as soon as they arrive
 
-	public EventSink(AnalyticsServer analyticsServer) {
-		this.analyticsServer = analyticsServer; 
+	public EventSink() throws RemoteException { 
 		hideBuffer = new ArrayList<Event>();
 		dedupBuffer = new Event[DEDUP_BUFSIZE];
 		dedupCursor = 0;
 		auto = false;
-	}
-	
-	public String subscribe(String filter) throws RemoteException {
-		return analyticsServer.subscribe(filter, this);
-	}
-	
-	public void unsubscribe(String identifier) throws RemoteException, AnalyticsException {
-		analyticsServer.unsubscribe(identifier);
 	}
 	
 	public void auto() {
@@ -64,6 +58,7 @@ public class EventSink implements Subscriber {
 		synchronized(dedupBuffer) {
 			for (int i = 0; i < DEDUP_BUFSIZE; i++) {
 				if ((dedupBuffer[i] != null) && (dedupBuffer[i].getID() == event.getID())) {
+					logger.fine(String.format("Discard duplicate event %s.", event.toString()));
 					return; // discard event
 				}
 			}

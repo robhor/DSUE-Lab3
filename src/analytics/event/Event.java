@@ -53,6 +53,6 @@ public class Event implements Serializable {
 	 * @return The event string
 	 */
 	public String toString() {
-		return String.format("%s: %d", getType(), new Date(getTimestamp()));
+		return String.format("%s: %s", getType(), new Date(getTimestamp()));
 	}
 }

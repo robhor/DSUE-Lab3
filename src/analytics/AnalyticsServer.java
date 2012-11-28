@@ -17,8 +17,9 @@ public interface AnalyticsServer extends Remote {
 	 * @param subscriber Subscriber
 	 * @return A unique subscription identifier string to be used for unsubscribing
 	 * @throws RemoteException if a remoting error occurs
+	 * @throws AnalyticsException if the filter pattern is invalid
 	 */
-	String subscribe(String filter, Subscriber subscriber) throws RemoteException;
+	String subscribe(String filter, Subscriber subscriber) throws RemoteException, AnalyticsException;
 	
 	/**
 	 * Processes an event. Even though this method is thread-safe,

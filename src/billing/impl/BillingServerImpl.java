@@ -34,7 +34,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		int port = 0;
 		try {
 			Properties props = PropertyReader.readProperties("registry.properties");
-			port  = Integer.valueOf(props.getProperty("registry.port"));
+			port = Integer.valueOf(props.getProperty("registry.port"));
 		} catch (NumberFormatException e) {
 			System.err.println("Bad configuration: Registry port invalid");
 		}

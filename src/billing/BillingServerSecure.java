@@ -52,6 +52,7 @@ public interface BillingServerSecure extends Remote {
 	 * @param user
 	 * @return
 	 * @throws RemoteException
+	 * @throws BillingException 
 	 */
-	Bill getBill(String user) throws RemoteException;
+	Bill getBill(String user) throws RemoteException, BillingException;
 }
