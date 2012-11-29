@@ -6,7 +6,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Properties;
-import java.util.logging.Logger;
+//import java.util.logging.Logger;
 
 import util.PropertyReader;
 import analytics.AnalyticsException;
@@ -48,7 +48,7 @@ import analytics.event.UserEvent;
 public class AnalyticsServerImpl extends UnicastRemoteObject implements AnalyticsServer {
 	private static final long serialVersionUID = 6388407827917970751L;
 	
-	private static final Logger logger = Logger.getLogger("AnalyticsServerImpl");
+	// private static final Logger logger = Logger.getLogger("AnalyticsServerImpl");
 	
 	private Subscribers subscribers;
 	private Auctions auctions;
@@ -101,7 +101,7 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 	 */
 	@Override
 	public void processEvent(Event event) throws AnalyticsException {
-		logger.info(String.format("processEvent(%s)", event));
+		// logger.info(String.format("processEvent(%s)", event));
 		
 		publish(event); // forward
 		
@@ -149,8 +149,8 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 	 * @param event The event
 	 */
 	private void publish(Event event) {
-		logger.info(String.format("publish(%s)", event));
-		
+		// this info is a large performance hit
+		// logger.info(String.format("publish(%s)", event));
 		subscribers.publish(event);
 	}
 
@@ -301,6 +301,10 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		// do nothing with this type of event
 	}
 	
+	private void shutdown() {
+		subscribers.shutdown();
+	}
+	
 	/**
 	 * Main method.
 	 * @param args The program argument (binding name)
@@ -326,7 +330,7 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 			registry = LocateRegistry.getRegistry(host, port);
 		}
 		
-		AnalyticsServer analytics = new AnalyticsServerImpl();
+		AnalyticsServerImpl analytics = new AnalyticsServerImpl();
 		registry.rebind(bindingName, analytics);
 		
 		System.out.println("Analytics Server ready.");
@@ -335,7 +339,7 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		System.in.read();
 		System.out.println("Shutting down...");
 		
-		// Unexport myself.
+		analytics.shutdown();
 		UnicastRemoteObject.unexportObject(analytics, true);
 	}
 }

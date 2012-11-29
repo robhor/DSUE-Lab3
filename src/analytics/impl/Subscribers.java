@@ -1,14 +1,10 @@
 package analytics.impl;
 
-import java.rmi.RemoteException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import analytics.AnalyticsException;
 import analytics.Subscriber;
 import analytics.event.Event;
@@ -18,9 +14,8 @@ import analytics.event.Event;
  * All operations in this class are thread-safe.
  */
 public class Subscribers {
-	private static final Logger logger = Logger.getLogger("Subscribers");
-	
 	private final Map<String, Subscriber> subscribers;
+	private final ExecutorService publishers;
 	private static int nextId = 1;
 	private static Object idLock = new Object(); 
 	
@@ -29,6 +24,7 @@ public class Subscribers {
 	 */
 	public Subscribers() {
 		subscribers = Collections.synchronizedMap(new HashMap<String, Subscriber> ());
+		publishers = Executors.newCachedThreadPool();
 	}
 	
 	/**
@@ -59,7 +55,7 @@ public class Subscribers {
 		Subscriber prev = subscribers.remove(id);
 		
 		if (null == prev) {
-			throw new AnalyticsException(String.format("Unsubscribe failed: unknown ID \"%s\"."));
+			throw new AnalyticsException(String.format("Unsubscribe failed: unknown ID \"%s\".", id));
 		}
 	}
 	
@@ -77,25 +73,14 @@ public class Subscribers {
 	 */
 	public void publish(Event event) {
 		synchronized(subscribers) {
-			List<String> toRemove = new ArrayList<String> ();
-			
-			for(Iterator<Map.Entry<String, Subscriber>> it = subscribers.entrySet().iterator(); it.hasNext(); ) {
-				Map.Entry<String, Subscriber> entry = it.next();
-				try {
-					entry.getValue().processEvent(event);
-				} catch (RemoteException e) {
-					logger.warning(String.format("Subscriber %s unreachable.", entry.getKey()));
-					toRemove.add(entry.getKey());
-				}
-			}
-			
-			for(Iterator<String> it = toRemove.iterator(); it.hasNext(); ) {
-				try {
-					remove(it.next());
-				} catch (AnalyticsException e) {
-					throw new RuntimeException(e);
-				}
+			for(Map.Entry<String, Subscriber> entry : subscribers.entrySet()) {
+				PublishTask task = new PublishTask(this, entry.getKey(), entry.getValue(), event);
+				publishers.execute(task);
 			}
 		}
+	}
+	
+	public void shutdown() {
+		publishers.shutdown();
 	}
 }
