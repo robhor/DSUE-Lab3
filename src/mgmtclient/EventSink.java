@@ -56,8 +56,8 @@ public class EventSink extends UnicastRemoteObject implements Subscriber {
 	public void processEvent(Event event) {
 		// check for duplicates
 		synchronized(dedupBuffer) {
-			for (int i = 0; i < DEDUP_BUFSIZE; i++) {
-				if ((dedupBuffer[i] != null) && (dedupBuffer[i].getID() == event.getID())) {
+			for (Event recent : dedupBuffer) {
+				if ((recent != null) && (recent.getID().equals(event.getID()))) {
 					logger.fine(String.format("Discard duplicate event %s.", event.toString()));
 					return; // discard event
 				}
