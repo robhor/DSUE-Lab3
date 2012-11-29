@@ -195,7 +195,7 @@ public class Prompt {
 			throw new ManagementException("Too many parameters.");
 		}
 		subscriptions.remove(identifier);
-		System.out.format("subscription %s terminated", identifier);
+		System.out.format("subscription %s terminated\n", identifier);
 	}
 	
 	private void handleAuto(Scanner scanner) throws ManagementException
