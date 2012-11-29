@@ -2,15 +2,10 @@ package loadtest;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Logger;
-
-import billing.impl.BillingServerImpl;
-
-import mgmtclient.EventSink;
 
 import util.PropertyReader;
 
