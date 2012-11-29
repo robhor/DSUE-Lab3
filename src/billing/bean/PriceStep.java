@@ -78,7 +78,7 @@ public class PriceStep implements Serializable, Comparable<PriceStep> {
 	
 	@Override
 	public String toString() {
-		return String.format("%.2f\t%.2f\t%.1f\t%.1f%%", 
+		return String.format("%f\t%f\t%.1f\t%.1f%%", 
 				startPrice, endPrice, fixedPrice, variablePricePercent);
 	}
 

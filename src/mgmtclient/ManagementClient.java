@@ -15,8 +15,6 @@ import analytics.AnalyticsServer;
 
 public class ManagementClient {
 	private static final Logger logger = Logger.getLogger("ManagementClient");
-	
-	private static final String registryProperties = "registry.properties";
 
 	private static EventSink eventSink;
 	private static Subscriptions subscriptions;
@@ -56,7 +54,7 @@ public class ManagementClient {
 
 	private static void connectExternalServers(String billingBindingName, String analyticsBindingName) throws ManagementException {
 		try {
-			Properties registryProps = PropertyReader.readProperties(registryProperties);
+			Properties registryProps = PropertyReader.readProperties("registry.properties");
 			if (null == registryProps ) {
 				throw new ManagementException("Could not read properties");
 			}
@@ -67,11 +65,11 @@ public class ManagementClient {
 			billingServer = (BillingServer) reg.lookup(billingBindingName);
 			analyticsServer = (AnalyticsServer) reg.lookup(analyticsBindingName);
 		} catch (NumberFormatException e) {
-			throw new ManagementException("Bad configuration: Invalid registry port");
+			throw new ManagementException("Bad configuration: Invalid registry port", e);
 		} catch (RemoteException e) {
-			throw new ManagementException("Registry could not be accessed");
+			throw new ManagementException("Registry could not be accessed", e);
 		} catch (NotBoundException e) {
-			throw new ManagementException("Billing Server not bound to registry");
+			throw new ManagementException("Server not bound to registry", e);
 		}
 	}
 	

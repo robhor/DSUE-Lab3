@@ -15,12 +15,6 @@ public class BillLine implements Serializable {
 		this.variableFee = variableFee;
 	}
 	
-	@Override
-	public String toString() {
-		return String.format("%d\t%.2f\t%.2f\t%.2f\t%.2f", 
-				auctionID, strikePrice, fixedFee, variableFee, fixedFee+variableFee);
-	}
-	
 	public long getAuctionID() {
 		return auctionID;
 	}
@@ -36,5 +30,10 @@ public class BillLine implements Serializable {
 	public double getVariableFee() {
 		return variableFee;
 	}
-
+	
+	@Override
+	public String toString() {
+		return String.format("%d\t%f\t%f\t%.1f\t%.1f", 
+				auctionID, strikePrice, fixedFee, variableFee, fixedFee+variableFee);
+	}
 }
