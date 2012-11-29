@@ -46,8 +46,12 @@ public class ManagementClient {
 		eventSink = new EventSink();
 		subscriptions = new Subscriptions(analyticsServer, eventSink);
 		prompt = new Prompt(billingServer, eventSink, subscriptions);
+
+		System.out.println("Management Client ready.");
 		
 		prompt.run();
+
+		System.out.println("Shutting down...");
 		
 		shutdown();
 	}

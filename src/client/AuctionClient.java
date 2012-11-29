@@ -13,9 +13,11 @@ import server.service.ClientManager;
 import server.service.impl.ClientManagerImpl;
 
 public class AuctionClient {
-	private static final boolean UDP_ENABLED = false;
+	private static final boolean UDP_ENABLED = false; // disabled in lab2
 	
 	private static final String USAGE = "USAGE: host tcpPort udpPort";
+	
+	private ClientManager clManager;
 	private Client server;
 	
 	private Socket socket;
@@ -45,13 +47,21 @@ public class AuctionClient {
 		
 		if (!UDP_ENABLED) udpPort = 0;
 		
-		new AuctionClient(host, tcpPort, udpPort);
+		AuctionClient client = new AuctionClient(host, tcpPort, udpPort);
+
+		System.out.println("Client ready.");
+		
+		client.prompt();
+		
+		System.out.println("Shutting down...");
+
+		client.shutdown();
 	}
 	
 	public AuctionClient(String host, int tcpPort, int udpPort) {
 		// establish connection
 		socket = null;
-		ClientManager clManager = new ClientManagerImpl();
+		clManager = new ClientManagerImpl();
 		
 		try {
 			socket = new Socket(host, tcpPort);
@@ -71,13 +81,6 @@ public class AuctionClient {
 		
 		// open UDP socket and listen in a separate thread
 		if (UDP_ENABLED) setupUDP(udpPort);
-		
-		// present prompt
-		prompt();
-		
-		// clean resources
-		clManager.disconnect(server);
-		if (udpSocket != null) udpSocket.close();
 	}
 	
 	private void setupUDP(int udpPort) {
@@ -125,5 +128,8 @@ public class AuctionClient {
 		return tcpProtocol.getUsername();
 	}
 	
-
+	public void shutdown() {
+		clManager.disconnect(server);
+		if (udpSocket != null) udpSocket.close();
+	}
 }

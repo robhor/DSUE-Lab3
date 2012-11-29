@@ -329,6 +329,8 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		AnalyticsServer analytics = new AnalyticsServerImpl();
 		registry.rebind(bindingName, analytics);
 		
+		System.out.println("Analytics Server ready.");
+		
 		// shut down when pressing enter
 		System.in.read();
 		System.out.println("Shutting down...");

@@ -26,7 +26,7 @@ public class Prompt {
 	public static final String CMD_AUTO        = "!auto";
 	public static final String CMD_HIDE        = "!hide";
 	public static final String CMD_PRINT       = "!print";
-	public static final String CMD_END         = "!end";
+	public static final String CMD_EXIT        = "!exit";
 	
 	private BillingServer billingServer;
 	private EventSink eventSink;
@@ -34,7 +34,7 @@ public class Prompt {
 	private BillingServerSecure billingServerSecure;
 	private Scanner stdinScanner;
 	private String username; // logged in user on billing server
-	private boolean end;
+	private boolean exit;
 	
 	public Prompt(BillingServer billingServer, EventSink eventSink, Subscriptions subscriptions) {
 		this.billingServer = billingServer;
@@ -43,14 +43,14 @@ public class Prompt {
 		billingServerSecure = null;
 		stdinScanner = new Scanner(System.in);
 		username = "";
-		end = false;
+		exit = false;
 	}
 	
 	/**
 	 * Prompts the user for input repeatedly until shutdown.
 	 */
 	public void run() {
-		while (!end) {
+		while (!exit) {
 			System.out.format("%s> ", username);
 			handleInput(stdinScanner.nextLine());
 		}
@@ -75,7 +75,7 @@ public class Prompt {
 			else if (CMD_AUTO.equals(command))         handleAuto(scanner);
 			else if (CMD_HIDE.equals(command))         handleHide(scanner);
 			else if (CMD_PRINT.equals(command))        handlePrint(scanner);
-			else if (CMD_END.equals(command))          handleEnd(scanner);
+			else if (CMD_EXIT.equals(command))         handleExit(scanner);
 			else {
 				System.out.println("Unknown command.");
 			}
@@ -224,12 +224,12 @@ public class Prompt {
 		eventSink.print();
 	}
 	
-	private void handleEnd(Scanner scanner) throws ManagementException
+	private void handleExit(Scanner scanner) throws ManagementException
 	{
 		if (scanner.hasNext()) {
 			throw new ManagementException("Too many parameters.");
 		}
-		end = true;
+		exit = true;
 	}
 
 	private String unquote(String next) {

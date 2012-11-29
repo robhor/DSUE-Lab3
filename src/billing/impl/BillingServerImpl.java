@@ -69,6 +69,8 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 			return;
 		}
 		
+		System.out.println("Billing Server ready.");
+		
 		// shut down when pressing enter
 		try { System.in.read();
 		} catch (IOException e) {}
