@@ -1,5 +1,6 @@
 package mgmtclient;
 
+import java.rmi.AccessException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -40,7 +41,12 @@ public class ManagementClient {
 		String billingBindingName = args[1];
 		
 		// Get external servers from registry
-		connectExternalServers(billingBindingName, analyticsBindingName);
+		try
+		{
+			connectExternalServers(billingBindingName, analyticsBindingName);
+		} catch (ManagementException e) {
+			logger.warning("ERROR: " + e.getMessage());
+		}
 		
 		// Create managers
 		eventSink = new EventSink();
@@ -57,6 +63,8 @@ public class ManagementClient {
 	}
 
 	private static void connectExternalServers(String billingBindingName, String analyticsBindingName) throws ManagementException {
+		Registry reg;
+		
 		try {
 			Properties registryProps = PropertyReader.readProperties("registry.properties");
 			if (null == registryProps ) {
@@ -65,15 +73,31 @@ public class ManagementClient {
 			
 			String host = registryProps.getProperty("registry.host");
 			int port = Integer.parseInt(registryProps.getProperty("registry.port"));
-			Registry reg = LocateRegistry.getRegistry(host, port);
-			billingServer = (BillingServer) reg.lookup(billingBindingName);
-			analyticsServer = (AnalyticsServer) reg.lookup(analyticsBindingName);
+			reg = LocateRegistry.getRegistry(host, port);
 		} catch (NumberFormatException e) {
 			throw new ManagementException("Bad configuration: Invalid registry port", e);
 		} catch (RemoteException e) {
 			throw new ManagementException("Registry could not be accessed", e);
+		} 
+		
+		try {
+			billingServer = (BillingServer) reg.lookup(billingBindingName);
 		} catch (NotBoundException e) {
-			throw new ManagementException("Server not bound to registry", e);
+			throw new ManagementException("Billing server not bound to registry", e);
+		} catch (AccessException e) {
+			throw new ManagementException("Registry could not be accessed", e);
+		} catch (RemoteException e) {
+			throw new ManagementException("Registry could not be accessed", e);
+		} finally {
+			try {
+				analyticsServer = (AnalyticsServer) reg.lookup(analyticsBindingName);
+			} catch (NotBoundException e) {
+				throw new ManagementException("Analytics server not bound to registry", e);
+			} catch (AccessException e) {
+				throw new ManagementException("Registry could not be accessed", e);
+			} catch (RemoteException e) {
+				throw new ManagementException("Registry could not be accessed", e);
+			}
 		}
 	}
 	

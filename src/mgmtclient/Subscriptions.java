@@ -20,6 +20,10 @@ public class Subscriptions {
 	}
 	
 	public String add(String filter) throws RemoteException, ManagementException, AnalyticsException {
+		if (null == analyticsServer) {
+			throw new ManagementException("Analytics server is not available.");
+		}
+		
 		String identifier = analyticsServer.subscribe(filter, subscriber);
 		
 		if (identifiers.contains(identifier)) {
@@ -31,6 +35,10 @@ public class Subscriptions {
 	}
 	
 	public void remove(String identifier) throws RemoteException, AnalyticsException, ManagementException {
+		if (null == analyticsServer) {
+			throw new ManagementException("Analytics server is not available.");
+		}
+		
 		if (!identifiers.contains(identifier)) {
 			String message = String.format("Failed to remove subscription with ID %s: ID not found.", identifier);
 			throw new ManagementException(message);
@@ -41,6 +49,10 @@ public class Subscriptions {
 	}
 	
 	public void clear() throws RemoteException, ManagementException {
+		if (null == analyticsServer) {
+			return;
+		}
+		
 		for (String identifier : identifiers) {
 			try {
 				analyticsServer.unsubscribe(identifier);	

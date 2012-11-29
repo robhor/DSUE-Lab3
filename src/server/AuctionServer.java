@@ -2,11 +2,13 @@ package server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.rmi.AccessException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 import analytics.AnalyticsServer;
 import billing.BillingServer;
@@ -24,6 +26,8 @@ import util.PropertyReader;
 
 
 public class AuctionServer {
+	private static final Logger logger = Logger.getLogger("AuctionServer");
+	
 	private static final String registryProperties = "registry.properties";
 	private static final String billingServerUser = "server";
 	private static final String billingServerPass = "secure password";
@@ -55,7 +59,11 @@ public class AuctionServer {
 		String billingBindingName = args[2];
 		
 		// Get external servers from registry
-		connectExternalServers(billingBindingName, analyticsBindingName);
+		try {
+			connectExternalServers(billingBindingName, analyticsBindingName);
+		} catch(AuctionException e) {
+			logger.warning("ERROR: " + e.getMessage());
+		}
 		AnalyticsServerWrapper wrappedAnalytics = new AnalyticsServerWrapper(analyticsServer);
 		
 		// Create Managers
@@ -88,7 +96,7 @@ public class AuctionServer {
 		shutdown();
 	}
 	
-	private static void connectExternalServers(String billingBindingName, String analyticsBindingName) {
+	private static void connectExternalServers(String billingBindingName, String analyticsBindingName) throws AuctionException {
 		Properties registryProps = PropertyReader.readProperties(registryProperties);
 		if (registryProps == null) {
 			System.err.println("Could not read properties");
@@ -96,22 +104,36 @@ public class AuctionServer {
 		}
 		
 		String host = registryProps.getProperty("registry.host");
+		Registry reg;
 		
 		try {
 			Integer port = Integer.valueOf(registryProps.getProperty("registry.port"));
-			Registry reg = LocateRegistry.getRegistry(host, port);
-			
+			reg = LocateRegistry.getRegistry(host, port);
+		} catch (NumberFormatException e) {
+			throw new AuctionException("Bad configuration: Invalid registry port");
+		} catch (RemoteException e) {
+			throw new AuctionException("Registry could not be accessed");
+		}
+
+		try {
 			BillingServer bills = (BillingServer) reg.lookup(billingBindingName);
 			billingServer = bills.login(billingServerUser, billingServerPass);
-			
-			analyticsServer = (AnalyticsServer) reg.lookup(analyticsBindingName);
-		} catch (NumberFormatException e) {
-			System.err.println("Bad configuration: Invalid registry port");
-		} catch (RemoteException e) {
-			System.err.println("Registry could not be accessed");
 		} catch (NotBoundException e) {
-			System.err.println("Billing Server not bound to registry");
-			e.printStackTrace();
+			throw new AuctionException("Billing server not bound to registry", e);
+		} catch (AccessException e) {
+			throw new AuctionException("Registry could not be accessed", e);
+		} catch (RemoteException e) {
+			throw new AuctionException("Registry could not be accessed", e);
+		} finally {
+			try {
+				analyticsServer = (AnalyticsServer) reg.lookup(analyticsBindingName);
+			} catch (NotBoundException e) {
+				throw new AuctionException("Analytics server not bound to registry", e);
+			} catch (AccessException e) {
+				throw new AuctionException("Registry could not be accessed", e);
+			} catch (RemoteException e) {
+				throw new AuctionException("Registry could not be accessed", e);
+			}
 		}
 	}
 	

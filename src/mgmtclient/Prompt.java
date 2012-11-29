@@ -95,6 +95,10 @@ public class Prompt {
 	
 	private void handleLogin(Scanner scanner) throws RemoteException, ManagementException
 	{
+		if (null == billingServer) {
+			throw new ManagementException("Billing server is not available.");
+		}
+		
 		username = scanner.next();
 		String password = scanner.next();
 		if (scanner.hasNext()) {

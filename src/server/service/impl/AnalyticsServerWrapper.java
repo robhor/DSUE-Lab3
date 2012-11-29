@@ -20,6 +20,10 @@ public class AnalyticsServerWrapper {
 	}
 	
 	public void processEvent(Event event) {
+		if (null == server) {
+			return;
+		}
+		
 		try {
 			server.processEvent(event);
 		} catch (RemoteException e) {
