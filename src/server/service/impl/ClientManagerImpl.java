@@ -16,6 +16,8 @@ import server.bean.Client;
 import server.service.ClientManager;
 
 public class ClientManagerImpl implements ClientManager {
+	private static boolean DISABLE_UDP = true;
+	
 	private Logger logger = Logger.getLogger(this.getClass().getName());
 	private ArrayList<Client> clients;
 	
@@ -69,6 +71,7 @@ public class ClientManagerImpl implements ClientManager {
 
 	@Override
 	public void postMessage(Client client, String message) {
+		if (DISABLE_UDP) return;
 		if (client == null)  return;
 		if (message == null) return;
 		

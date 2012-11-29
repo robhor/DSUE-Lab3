@@ -1,23 +1,46 @@
 package loadtest;
 
 import java.io.IOException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
+import java.util.logging.Logger;
+
+import billing.impl.BillingServerImpl;
+
+import mgmtclient.EventSink;
 
 import util.PropertyReader;
 
 public class LoadTester {
+	private static final Logger logger = Logger.getLogger("LoadTester");
+	
 	private ArrayList<TestClient> threads;
+	private TestSubscriber testSubscriber;
 	
 	public static void main(String[] args) {
-		if (args.length < 3) return;
+		if (args.length < 3) {
+			System.err.println("USAGE: java ..LoadTester host port analyticsBindingName");
+			return;
+		}
 		
 		String host = args[0];
 		Integer port = Integer.parseInt(args[1]);
 		String abn = args[2];
 		
-		LoadTester tester = new LoadTester(host, port, abn);
+		LoadTester tester;
+		
+		try {
+			tester = new LoadTester(host, port, abn);
+		} catch (LoadTestException e) {
+			logger.severe("Load test run failed: " + e.getMessage());
+			return;
+		} catch (RemoteException e) {
+			logger.severe("Load test run failed: " + e.getMessage());
+			return;
+		}
 		
 		try { System.in.read();
 		} catch (IOException e) {}
@@ -25,7 +48,7 @@ public class LoadTester {
 		tester.shutdown();
 	}
 	
-	public LoadTester(String host, int port, String analyticsBindingName) {
+	public LoadTester(String host, int port, String analyticsBindingName) throws LoadTestException, RemoteException {
 		Properties props = PropertyReader.readProperties("loadtest.properties");
 		
 		Integer clients = Integer.parseInt(props.getProperty("clients"));
@@ -34,14 +57,8 @@ public class LoadTester {
 		Integer updateIntv = Integer.parseInt(props.getProperty("updateIntervalSec"));
 		Integer bpm = Integer.parseInt(props.getProperty("bidsPerMin"));
 		
-		
-		// TODO log in as management client, subscribe to ".*"
-		/*
-		 * Moreover, the test environment should instantiate a management client
-		 * with an event subscription on any event type (filter ".*").
-		 * During the tests, the management client should be in "auto" mode,
-		 * i.e., print all the incoming events automatically to the command line.
-		 */
+		testSubscriber = new TestSubscriber(analyticsBindingName);
+		testSubscriber.run();
 		
 		threads = new ArrayList<TestClient>();
 		
@@ -54,6 +71,8 @@ public class LoadTester {
 	}
 	
 	public void shutdown() {
+		testSubscriber.shutdown();
+		
 		for (TestClient t : threads) {
 			t.shutdown();
 			try {
