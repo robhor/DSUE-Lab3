@@ -6,7 +6,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Properties;
-//import java.util.logging.Logger;
+// import java.util.logging.Logger;
 
 import util.PropertyReader;
 import analytics.AnalyticsException;
@@ -149,8 +149,8 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 	 * @param event The event
 	 */
 	private void publish(Event event) {
-		// this info is a large performance hit
 		// logger.info(String.format("publish(%s)", event));
+		
 		subscribers.publish(event);
 	}
 
@@ -310,10 +310,6 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		System.out.format("Higest recorded bid:\t%s\n", bidStats.max());
 	}
 	
-	private void shutdown() {
-		subscribers.shutdown();
-	}
-	
 	/**
 	 * Main method.
 	 * @param args The program argument (binding name)
@@ -349,7 +345,6 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		analytics.printAllStats();
 		
 		System.out.println("Shutting down...");
-		analytics.shutdown();
 		UnicastRemoteObject.unexportObject(analytics, true);
 	}
 }

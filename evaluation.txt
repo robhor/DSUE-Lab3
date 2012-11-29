@@ -1,0 +1,7 @@
+Machine 1:
+CPU: AMD Phenom II X6 1090T (6 cores)
+RAM: 16GiB
+OS: Ubuntu 12.04.1 LTS
+Kernel: Linux 3.2.0-33-generic #52-Ubuntu SMP Thu Oct 18 16:29:15 UTC 2012 x86_64
+
+
