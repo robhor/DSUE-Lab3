@@ -71,13 +71,13 @@ public class AuctionManagerImpl implements AuctionManager {
 		AuctionEndTask task = new AuctionEndTask(auction);
 		timer.schedule(task, calendar.getTime());
 		
+		// notify analytics
+		Event event = new AuctionEvent("AUCTION_STARTED", System.currentTimeMillis(), auction.getId());
+		analyticsServer.processEvent(event);
+		
 		writeLock.lock();
 		try {
 			auctions.put(id, auction);
-
-			// notify analytics
-			Event event = new AuctionEvent("AUCTION_STARTED", System.currentTimeMillis(), auction.getId());
-			analyticsServer.processEvent(event);
 		} finally {
 			writeLock.unlock();
 		}

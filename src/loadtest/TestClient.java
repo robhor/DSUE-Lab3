@@ -169,7 +169,7 @@ public class TestClient extends Thread {
 	}
 	
 	private void bidOn(int auctionId) {
-		System.out.println("bidding on " + auctionId);
+		if (DEBUG) System.out.println("bidding on " + auctionId);
 		long timeGone =  new Date().getTime() - startTime;
 		float dollars =  timeGone / 10.0f;
 		
