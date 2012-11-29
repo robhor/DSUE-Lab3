@@ -301,6 +301,15 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		// do nothing with this type of event
 	}
 	
+	private void printAllStats() {
+		System.out.format("Auction success ratio:\t%s\n", auctionStats.successRatio());
+		System.out.format("Auction average duration:\t%s\n", auctionStats.timeAvg());
+		System.out.format("Session min time:\t%s\n", sessionStats.min());
+		System.out.format("Session max time:\t%s\n", sessionStats.max());
+		System.out.format("Bids per minute:\t%s\n", bidStats.bidsPerMin());
+		System.out.format("Higest recorded bid:\t%s\n", bidStats.max());
+	}
+	
 	private void shutdown() {
 		subscribers.shutdown();
 	}
@@ -337,8 +346,9 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		
 		// shut down when pressing enter
 		System.in.read();
-		System.out.println("Shutting down...");
+		analytics.printAllStats();
 		
+		System.out.println("Shutting down...");
 		analytics.shutdown();
 		UnicastRemoteObject.unexportObject(analytics, true);
 	}

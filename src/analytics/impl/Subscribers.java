@@ -64,11 +64,6 @@ public class Subscribers {
 	 * As a side effect, all subscribers which encounter connection problems
 	 * are automatically unsubscribed from the service.
 	 * 
-	 * Thoughts on performance: This method will block until all subscribers have confirmed
-	 *   receiving the event by returning from processEvent(). This is currently a huge
-	 *   potential risk and performance hazard which could be handled by assigning publishing
-	 *   threads to all subscribers separately.
-	 * 
 	 * @param event The event
 	 */
 	public void publish(Event event) {
