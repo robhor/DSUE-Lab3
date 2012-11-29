@@ -1,0 +1,11 @@
+Teamwork split up between:
+Robert Horvath 1025519
+Peter Neubauer 0725263
+
+Lab1 foundation code base: Robert Horvath
+Billing Server: Robert Horvath
+Analytics Server: Peter Neubauer
+Management Client: Peter Neubauer
+Load Tester: Robert Horvath
+Load Evaluation: both
+
