@@ -1,6 +1,7 @@
 package billing.impl;
 
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -12,7 +13,8 @@ import billing.bean.BillLine;
 import billing.bean.PriceStep;
 import billing.bean.PriceSteps;
 
-public class BillingServerSecureImpl implements BillingServerSecure {
+public class BillingServerSecureImpl extends UnicastRemoteObject implements BillingServerSecure {
+	private static final long serialVersionUID = 1L;
 	private HashMap<String, ArrayList<BillLine>> bills;
 	private ArrayList<PriceStep> priceSteps;
 	

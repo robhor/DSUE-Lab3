@@ -38,7 +38,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		try {
 			Properties props = PropertyReader.readProperties("registry.properties");
 			port = Integer.valueOf(props.getProperty("registry.port"));
-			host = props.getProperty("registry.host");
+			host  = props.getProperty("registry.host");
 		} catch (NumberFormatException e) {
 			System.err.println("Bad configuration: Registry port invalid");
 		}
@@ -63,9 +63,9 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 			registry.rebind(bindingName, bs);
 			
 			secure = new BillingServerSecureImpl();
-			UnicastRemoteObject.exportObject(secure, port);
 		} catch (RemoteException e) {
 			System.err.println("Could not bind to registry!");
+			e.printStackTrace();
 			return;
 		}
 		
@@ -80,11 +80,15 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		// Unexport myself & registry.
 		try {
 			UnicastRemoteObject.unexportObject(registry, true);
+		} catch (RemoteException e) {
+			logger.log(Level.WARNING, "Unexporting registry failed");
+		}
+		
+		try {
 			UnicastRemoteObject.unexportObject(bs, true);
 			UnicastRemoteObject.unexportObject(secure, true);
 		} catch (RemoteException e) {
-			logger.log(Level.WARNING, "Unexporting registry failed");
-			e.printStackTrace();
+			logger.log(Level.WARNING, "Unexporting billing server failed");
 		}
 	}
 	

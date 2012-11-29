@@ -67,7 +67,7 @@ public class AuctionServer {
 		try {
 			socket = new ServerSocket(tcpPort);
 		} catch (IOException e) {
-			System.out.println("Could not connect to Socket");
+			System.out.println("Could not create server socket");
 			System.exit(1);
 		}
 		
