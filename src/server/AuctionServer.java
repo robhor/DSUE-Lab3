@@ -77,9 +77,13 @@ public class AuctionServer {
 		Thread serverThread = new Thread(dispatcher);
 		serverThread.start();
 		
+		System.out.println("Server ready.");
+		
 		// close when pressing enter
 		try { System.in.read();
 		} catch (IOException e) {}
+
+		System.out.println("Shutting down...");
 		
 		shutdown();
 	}
