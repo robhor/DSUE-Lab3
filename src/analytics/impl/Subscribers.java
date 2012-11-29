@@ -59,7 +59,7 @@ public class Subscribers {
 		Subscriber prev = subscribers.remove(id);
 		
 		if (null == prev) {
-			throw new AnalyticsException(String.format("Unsubscribe failed: unknown ID \"%s\"."));
+			throw new AnalyticsException(String.format("Unsubscribe failed: unknown ID \"%s\".", id));
 		}
 	}
 	
