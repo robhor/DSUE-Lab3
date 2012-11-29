@@ -2,14 +2,12 @@ package billing.impl;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,8 +21,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 	private static Logger logger = Logger.getLogger("BillingServerSecureImpl");
 	
 	private Properties users;
-	private int port;
-	private static ArrayList<Remote> secureInstances;
+	private static BillingServerSecure secure;
 	
 	public static void main(String[] args) {
 		// arguments: bindingName
@@ -47,10 +44,12 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		BillingServerImpl bs;
 		
 		try {
-			secureInstances = new ArrayList<Remote>();
-			bs = new BillingServerImpl(port);
+			bs = new BillingServerImpl();
 			registry = LocateRegistry.createRegistry(port);
 			registry.rebind(bindingName, bs);
+			
+			secure = new BillingServerSecureImpl();
+			UnicastRemoteObject.exportObject(secure, port);
 		} catch (RemoteException e) {
 			System.err.println("Could not bind to registry!");
 			return;
@@ -66,18 +65,15 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		try {
 			UnicastRemoteObject.unexportObject(registry, true);
 			UnicastRemoteObject.unexportObject(bs, true);
-			for (Remote r : secureInstances) {
-				UnicastRemoteObject.unexportObject(r, true);
-			}
+			UnicastRemoteObject.unexportObject(secure, true);
 		} catch (RemoteException e) {
 			logger.log(Level.WARNING, "Unexporting registry failed");
 			e.printStackTrace();
 		}
 	}
 	
-	protected BillingServerImpl(int port) throws RemoteException {
+	protected BillingServerImpl() throws RemoteException {
 		super();
-		this.port = port;
 		users = PropertyReader.readProperties("user.properties");
 	}
 	
@@ -101,10 +97,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		// authorized
 		logger.log(Level.INFO, "Login as " + username + " successful.");
 		
-		BillingServerSecure bss = new BillingServerSecureImpl();
-		secureInstances.add(bss);
-		bss = (BillingServerSecure) UnicastRemoteObject.exportObject(bss, port);
-		return bss;
+		return secure;
 	}
 	
 	
