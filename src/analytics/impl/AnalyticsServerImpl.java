@@ -6,21 +6,19 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Properties;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import util.PropertyReader;
-
 import analytics.AnalyticsException;
 import analytics.AnalyticsServer;
 import analytics.Subscriber;
 import analytics.bean.Auction;
-import analytics.bean.Auctions;
-import analytics.bean.Session;
-import analytics.bean.Sessions;
-import analytics.bean.SessionStats;
 import analytics.bean.AuctionStats;
+import analytics.bean.Auctions;
 import analytics.bean.BidStats;
+import analytics.bean.Session;
+import analytics.bean.SessionStats;
+import analytics.bean.Sessions;
 import analytics.event.AuctionEvent;
 import analytics.event.BidEvent;
 import analytics.event.Event;
@@ -79,9 +77,10 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 	 * @param filter Regular expression filter for events
 	 * @param subscriber Subscriber
 	 * @return A unique subscription identifier string to be used for unsubscribing
+	 * @throws AnalyticsException if the filter pattern is invalid
 	 */
 	@Override
-	public String subscribe(String filter, Subscriber subscriber) {
+	public String subscribe(String filter, Subscriber subscriber) throws AnalyticsException {
 		Subscriber filteringSubscriber = new FilteringSubscriber(filter, subscriber);
 		return subscribers.add(filteringSubscriber).toString();
 	}
@@ -142,7 +141,7 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 	 */
 	@Override
 	public void unsubscribe(String identifier) throws AnalyticsException {
-		subscribers.remove(UUID.fromString(identifier));
+		subscribers.remove(identifier);
 	}
 	
 	/**
@@ -320,14 +319,14 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		String host  = props.getProperty("registry.host");
 		int port  = Integer.valueOf(props.getProperty("registry.port"));
 		Registry registry = LocateRegistry.getRegistry(host, port);
-		AnalyticsServerImpl as = new AnalyticsServerImpl();
-		registry.rebind(bindingName, as);
+		AnalyticsServer analytics = new AnalyticsServerImpl();
+		registry.rebind(bindingName, analytics);
 		
 		// shut down when pressing enter
 		System.in.read();
 		System.out.println("Shutting down...");
 		
-		// Unexport myself & registry.
-		UnicastRemoteObject.unexportObject(as, true);
+		// Unexport myself.
+		UnicastRemoteObject.unexportObject(analytics, true);
 	}
 }

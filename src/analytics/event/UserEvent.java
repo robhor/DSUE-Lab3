@@ -29,10 +29,18 @@ public class UserEvent extends Event {
 	
 	/**
 	 * Produces a string representation of the event.
-	 * Used for logging.
+	 * Used for printing in ManagementClient.
 	 * @return The event string
 	 */
 	public String toString() {
-		return String.format("%s userName=%s", super.toString(), getUserName());
+		if ("USER_LOGIN".equals(getType())) {
+			return String.format("%s - user %s logged in", super.toString(), getUserName());	
+		} else
+		if ("USER_LOGOUT".equals(getType())) {
+			return String.format("%s - user %s logged out", super.toString(), getUserName());	
+		}
+		else {
+			return super.toString(); // fallback for invalid type
+		}
 	}
 }

@@ -11,7 +11,7 @@
     <property name="client1.port" value="13281"/><!-- UDP port of 1st Bidding Client -->
     <property name="client2.port" value="13282"/><!-- UDP port of 2nd Bidding Client -->
     <property name="client3.port" value="13283"/><!-- UDP port of 3rd Bidding Client -->
-    <property name="mgmtclient.name" value="your.ManagementClient"/><!-- Management Client's full class name (including the package) -->
+    <property name="mgmtclient.name" value="mgmtclient.ManagementClient"/><!-- Management Client's full class name (including the package) -->
     <property name="analytics.name" value="analytics.impl.AnalyticsServerImpl"/><!-- Analytics Server's full class name (including the package) -->
     <property name="loadtest.name" value="loadtest.LoadTester"/><!-- Load Test Component's full class name (including the package) -->
     <property name="billing.name" value="billing.impl.BillingServerImpl"/><!-- Billing Server's full class name (including the package) -->

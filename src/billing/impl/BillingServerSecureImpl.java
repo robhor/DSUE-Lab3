@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import billing.BillingException;
 import billing.BillingServerSecure;
 import billing.bean.Bill;
 import billing.bean.BillLine;
@@ -89,8 +90,11 @@ public class BillingServerSecureImpl implements BillingServerSecure {
 	}
 
 	@Override
-	public Bill getBill(String user) throws RemoteException {
+	public Bill getBill(String user) throws RemoteException, BillingException {
 		ArrayList<BillLine> lines = bills.get(user);
+		if (null == lines) {
+			throw new BillingException("User not found.");
+		}
 		return new Bill(user, lines, getPriceSteps());
 	}
 

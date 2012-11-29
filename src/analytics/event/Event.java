@@ -1,6 +1,7 @@
 package analytics.event;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -48,10 +49,10 @@ public class Event implements Serializable {
 	
 	/**
 	 * Produces a string representation of the event.
-	 * Used for logging.
+	 * Used for printing in ManagementClient.
 	 * @return The event string
 	 */
 	public String toString() {
-		return String.format("type=%s timestamp=%s", getType(), getTimestamp());
+		return String.format("%s: %s", getType(), new Date(getTimestamp()));
 	}
 }

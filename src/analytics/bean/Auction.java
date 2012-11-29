@@ -17,6 +17,7 @@ public class Auction {
 	public Auction(long ID, long startTime) {
 		this.ID = ID;
 		this.startTime = startTime;
+		success = false;
 	}
 	
 	/**

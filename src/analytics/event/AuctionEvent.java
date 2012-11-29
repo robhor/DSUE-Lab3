@@ -29,10 +29,18 @@ public class AuctionEvent extends Event {
 	
 	/**
 	 * Produces a string representation of the event.
-	 * Used for logging.
+	 * Used for printing in ManagementClient.
 	 * @return The event string
 	 */
 	public String toString() {
-		return String.format("%s auctionID=%s", super.toString(), getAuctionID());
+		if ("AUCTION_STARTED".equals(getType())) {
+			return String.format("%s - auction %s has started", super.toString(), getAuctionID());	
+		} else
+		if ("AUCTION_ENDED".equals(getType())) {
+			return String.format("%s - auction %s has ended", super.toString(), getAuctionID());	
+		}
+		else {
+			return super.toString(); // fallback for invalid type
+		}
 	}
 }

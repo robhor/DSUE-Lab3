@@ -28,4 +28,12 @@ public class PriceSteps implements Remote, Iterable<PriceStep> {
 	public Iterator<PriceStep> iterator() {
 		return steps.iterator();
 	}
+	
+	public String toString() {
+		String str = "Min_Price\tMax_Price\tFee_Fixed\tFee_Variable\n";
+		for(PriceStep step : steps){
+			str += step.toString() + "\n";
+		}
+		return str;
+	}
 }

@@ -50,10 +50,21 @@ public class BidEvent extends Event {
 	
 	/**
 	 * Produces a string representation of the event.
-	 * Used for logging.
+	 * Used for printing in ManagementClient.
 	 * @return The event string
 	 */
 	public String toString() {
-		return String.format("%s userName=%s auctionID=%s price=%s", super.toString(), getUserName(), getAuctionID(), getPrice());
+		if ("BID_PLACED".equals(getType())) {
+			return String.format("%s - user %s placed bid %s on auction %s", super.toString(), getUserName(), getPrice(), getAuctionID());	
+		} else
+		if ("BID_OVERBID".equals(getType())) {
+			return String.format("%s - user %s overbid with %s on auction %s", super.toString(), getUserName(), getPrice(), getAuctionID());	
+		} else
+		if ("BID_WON".equals(getType())) {
+			return String.format("%s - user %s won auction %s with %s", super.toString(), getUserName(), getAuctionID(), getPrice());	
+		}
+		else {
+			return super.toString(); // fallback for invalid type
+		}
 	}
 }
