@@ -30,8 +30,17 @@ public class BillingServerSecureImpl implements BillingServerSecure {
 	public void createPriceStep(double startPrice, double endPrice,
 			double fixedPrice, double variablePricePercent)
 			throws RemoteException {
+		PriceStep step;
 		
-		PriceStep step = new PriceStep(startPrice, endPrice, fixedPrice, variablePricePercent);
+		try
+		{
+			step = new PriceStep(startPrice, endPrice, fixedPrice, variablePricePercent);
+		}
+		catch(IllegalArgumentException e)
+		{
+			// Assignment requirements: throw RemoteException
+			throw new RemoteException("Invalid parameter for price step.", e);
+		}
 		
 		synchronized (priceSteps) {
 			// check for overlap
@@ -60,7 +69,7 @@ public class BillingServerSecureImpl implements BillingServerSecure {
 		}
 		
 		// nothing deleted
-		throw new RemoteException("Specified interval does not match any existing price step.");
+		throw new RemoteException(String.format("Price step [%s %s] does not exist", startPrice, endPrice));
 	}
 
 	@Override
