@@ -30,11 +30,14 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		}
 		String bindingName = args[0];
 		
-		// registry port
+		// registry
 		int port = 0;
+		String host = null;
+		
 		try {
 			Properties props = PropertyReader.readProperties("registry.properties");
 			port = Integer.valueOf(props.getProperty("registry.port"));
+			host = props.getProperty("registry.host");
 		} catch (NumberFormatException e) {
 			System.err.println("Bad configuration: Registry port invalid");
 		}
@@ -43,8 +46,19 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		BillingServerImpl bs;
 		
 		try {
-			bs = new BillingServerImpl();
 			registry = LocateRegistry.createRegistry(port);
+		} catch (RemoteException e) {
+			// already created
+			try {
+				registry = LocateRegistry.getRegistry(host, port);
+			} catch (RemoteException e1) {
+				System.err.println("Could not bind to registry!");
+				return;
+			}
+		}
+		
+		try {
+			bs = new BillingServerImpl();
 			registry.rebind(bindingName, bs);
 		} catch (RemoteException e) {
 			System.err.println("Could not bind to registry!");

@@ -318,7 +318,14 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		Properties props = PropertyReader.readProperties("registry.properties");
 		String host  = props.getProperty("registry.host");
 		int port  = Integer.valueOf(props.getProperty("registry.port"));
-		Registry registry = LocateRegistry.getRegistry(host, port);
+		
+		Registry registry;
+		try {
+			registry = LocateRegistry.createRegistry(port);
+		} catch (RemoteException e) {
+			registry = LocateRegistry.getRegistry(host, port);
+		}
+		
 		AnalyticsServer analytics = new AnalyticsServerImpl();
 		registry.rebind(bindingName, analytics);
 		
