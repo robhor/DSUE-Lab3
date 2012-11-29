@@ -149,7 +149,7 @@ public class TestClient extends Thread {
 					" testClient" + clientNr + "'s great auction nr. " + auctionCount);
 			answer = read();
 		}
-		if (!answer.equals(TCPProtocol.RESPONSE_SUCCESS)) return false;
+		if ((null == answer) || !answer.equals(TCPProtocol.RESPONSE_SUCCESS)) return false;
 		
 		auctionCount++;
 		return true;
