@@ -1,9 +1,12 @@
 package billing.bean;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public class Bill {
+public class Bill implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private String user;
 	private ArrayList<BillLine> lines;
 	

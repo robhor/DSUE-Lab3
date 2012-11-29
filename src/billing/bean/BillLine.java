@@ -1,7 +1,11 @@
 package billing.bean;
 
+import java.io.Serializable;
 
-public class BillLine {
+
+public class BillLine implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private long auctionID;
 	private double strikePrice, fixedFee, variableFee;
 	

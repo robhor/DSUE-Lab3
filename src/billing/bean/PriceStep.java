@@ -1,7 +1,11 @@
 package billing.bean;
 
+import java.io.Serializable;
 
-public class PriceStep implements Comparable<PriceStep> {
+
+public class PriceStep implements Comparable<PriceStep>, Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private double startPrice, endPrice, fixedPrice, variablePricePercent;
 	
 	public PriceStep(double startPrice, double endPrice,
