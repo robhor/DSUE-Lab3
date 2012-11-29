@@ -21,7 +21,8 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 	private static Logger logger = Logger.getLogger("BillingServerSecureImpl");
 	
 	private Properties users;
-
+	private static BillingServerSecure secure;
+	
 	public static void main(String[] args) {
 		// arguments: bindingName
 		if (args.length < 1) {
@@ -60,6 +61,9 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		try {
 			bs = new BillingServerImpl();
 			registry.rebind(bindingName, bs);
+			
+			secure = new BillingServerSecureImpl();
+			UnicastRemoteObject.exportObject(secure, port);
 		} catch (RemoteException e) {
 			System.err.println("Could not bind to registry!");
 			return;
@@ -77,8 +81,10 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		try {
 			UnicastRemoteObject.unexportObject(registry, true);
 			UnicastRemoteObject.unexportObject(bs, true);
+			UnicastRemoteObject.unexportObject(secure, true);
 		} catch (RemoteException e) {
 			logger.log(Level.WARNING, "Unexporting registry failed");
+			e.printStackTrace();
 		}
 	}
 	
@@ -107,8 +113,7 @@ public class BillingServerImpl extends UnicastRemoteObject implements BillingSer
 		// authorized
 		logger.log(Level.INFO, "Login as " + username + " successful.");
 		
-		BillingServerSecure bss = new BillingServerSecureImpl();
-		return bss;
+		return secure;
 	}
 	
 	

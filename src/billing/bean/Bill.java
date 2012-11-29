@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class Bill implements Serializable {
-	private static final long serialVersionUID = 48003604693640046L;
+	private static final long serialVersionUID = 1L;
 	
 	private String user;
 	private ArrayList<BillLine> lines;

@@ -1,6 +1,5 @@
 package billing.impl;
 
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,9 +12,7 @@ import billing.bean.BillLine;
 import billing.bean.PriceStep;
 import billing.bean.PriceSteps;
 
-public class BillingServerSecureImpl implements BillingServerSecure, Serializable {
-	private static final long serialVersionUID = 5920284125206224882L;
-	
+public class BillingServerSecureImpl implements BillingServerSecure {
 	private HashMap<String, ArrayList<BillLine>> bills;
 	private ArrayList<PriceStep> priceSteps;
 	

@@ -128,7 +128,7 @@ public class AuctionManagerImpl implements AuctionManager {
 			if (billingServer != null)
 				billingServer.billAuction(auction.getOwner().getName(), auction.getId(), highestBid);
 		} catch (RemoteException e) {
-			logger.log(Level.SEVERE, "Could not bill auction: " + e.getMessage());
+			logger.log(Level.WARNING, "Could not bill auction: " + e.getMessage());
 		}
 	}
 

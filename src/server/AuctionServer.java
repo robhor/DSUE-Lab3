@@ -100,8 +100,10 @@ public class AuctionServer {
 		try {
 			Integer port = Integer.valueOf(registryProps.getProperty("registry.port"));
 			Registry reg = LocateRegistry.getRegistry(host, port);
+			
 			BillingServer bills = (BillingServer) reg.lookup(billingBindingName);
 			billingServer = bills.login(billingServerUser, billingServerPass);
+			
 			analyticsServer = (AnalyticsServer) reg.lookup(analyticsBindingName);
 		} catch (NumberFormatException e) {
 			System.err.println("Bad configuration: Invalid registry port");
@@ -109,6 +111,7 @@ public class AuctionServer {
 			System.err.println("Registry could not be accessed");
 		} catch (NotBoundException e) {
 			System.err.println("Billing Server not bound to registry");
+			e.printStackTrace();
 		}
 	}
 	
