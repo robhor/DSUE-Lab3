@@ -35,7 +35,7 @@ public class Auctions {
 		Auction auction = auctions.get(auctionID);
 		
 		if (null == auction) {
-			throw new AnalyticsException(String.format("Invalid auctionID: \"%s\"", auctionID));
+			throw new AnalyticsException(String.format("Failed to set successful auction with invalid ID: \"%s\"", auctionID));
 		}
 		
 		auction.setSuccess(true);

@@ -180,7 +180,7 @@ public class AnalyticsServerImpl extends UnicastRemoteObject implements Analytic
 		}
 		
 		if (null == auction) {
-			throw new AnalyticsException(String.format("Invalid auctionID: \"%s\"", auctionID));
+			throw new AnalyticsException(String.format("Failed to end auction with invalid ID: \"%s\"", auctionID));
 		}
 		
 		long auctionTime = event.getTimestamp() - auction.getStartTime();

@@ -74,13 +74,13 @@ public class AuctionManagerImpl implements AuctionManager {
 		writeLock.lock();
 		try {
 			auctions.put(id, auction);
+
+			// notify analytics
+			Event event = new AuctionEvent("AUCTION_STARTED", System.currentTimeMillis(), auction.getId());
+			analyticsServer.processEvent(event);
 		} finally {
 			writeLock.unlock();
 		}
-
-		// notify analytics
-		Event event = new AuctionEvent("AUCTION_STARTED", System.currentTimeMillis(), auction.getId());
-		analyticsServer.processEvent(event);
 		
 		return auction;
 	}
