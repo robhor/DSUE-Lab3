@@ -18,7 +18,7 @@ import client.TCPProtocol;
  * creates, updates, and bids on auctions.
  */
 public class TestClient extends Thread {
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	
 	private String host;
 	private int port;
@@ -158,9 +158,14 @@ public class TestClient extends Thread {
 	public void bid() {
 		if (DEBUG) System.out.println("\nBidding on something..");
 		
-		if (activeAuctions.size() == 0) return;
-		int index = rand.nextInt(activeAuctions.size());
-		bidOn(activeAuctions.get(index));
+		int auction;
+		synchronized (activeAuctions) {
+			if (activeAuctions.size() == 0) return;
+			int index = rand.nextInt(activeAuctions.size());
+			auction = activeAuctions.get(index);
+		}
+		
+		bidOn(auction);
 	}
 	
 	private void bidOn(int auctionId) {
@@ -196,9 +201,9 @@ public class TestClient extends Thread {
 	}
 	
 	public void shutdown() {
-		createTimer.cancel();
-		updateTimer.cancel();
-		bidTimer.cancel();
+		if(createTimer != null) createTimer.cancel();
+		if(updateTimer != null) updateTimer.cancel();
+		if(bidTimer != null)    bidTimer.cancel();
 	}
 
 }

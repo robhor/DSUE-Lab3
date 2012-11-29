@@ -4,6 +4,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -56,6 +57,7 @@ public class TestSubscriber implements Runnable {
 	public void shutdown() {
 		try {
 			analyticsServer.unsubscribe(subscriptionId);
+			UnicastRemoteObject.unexportObject(eventSink, true);
 		} catch (RemoteException e) {
 			logger.warning("ERROR: Failed to unsubscribe from analytics server: " + e.getMessage());
 		} catch (AnalyticsException e) {
