@@ -1,7 +1,90 @@
 Machine 1:
-CPU: AMD Phenom II X6 1090T (6 cores)
-RAM: 16GiB
+CPU: 3.2 GHz AMD Phenom II X6 1090T (6 cores)
+RAM: 16GB
 OS: Ubuntu 12.04.1 LTS
 Kernel: Linux 3.2.0-33-generic #52-Ubuntu SMP Thu Oct 18 16:29:15 UTC 2012 x86_64
 
+Machine 2:
+CPU: 2.4 GHz Intel Core i5
+RAM: 8GB
+OS: Mac OS X 10.8.2
+
+Testsettings 1 (default):
+clients = 100
+auctionsPerMin = 1
+auctionDuration = 120
+updateIntervalSec: 20
+bidsPerMin = 2
+
+Testsettings 2:
+clients = 100
+auctionsPerMin = 10
+auctionDuration = 120
+updateIntervalSec: 1
+bidsPerMin = 200
+
+Testsettings 3:
+clients = 1000
+auctionsPerMin = 100
+auctionDuration = 120
+updateIntervalSec: 1
+bidsPerMin = 2000
+
+Testsettings 1 on Machine 1:
+Processor usage: 0%
+Auction success ratio:	0.9
+Auction average duration:	120429.44
+Session min time:	9.223372036854776E18
+Session max time:	0.0
+Bids per minute:	135.63471661158036
+Higest recorded bid:	12052.3
+
+Testsettings 2 on Machine 1:
+Processor usage: ~140-160%
+Auction success ratio:	1.0
+Auction average duration:	120177.45999999998
+Session min time:	122590.0
+Session max time:	122705.0
+Bids per minute:	18837.434293269696
+Higest recorded bid:	12225.1
+
+Testsettings 3 on Machine 1:
+Processor usage: ~410-480%
+Auction success ratio:	1.0
+Auction average duration:	121866.0
+Session min time:	9.223372036854776E18
+Session max time:	0.0
+Bids per minute:	577.5497032757725
+Higest recorded bid:	6909.0
+
+
+Testsettings 1 on Machine 2:
+Processor usage: 0%
+Auction success ratio:	0.86
+Auction average duration:	120226.79999999999
+Session min time:	120703.0
+Session max time:	121106.0
+Bids per minute:	95.10477321378964
+Higest recorded bid:	12077.7
+
+Testsettings 2 on Machine 2:
+Processor usage: ~160-190%
+Auction success ratio:	1.0
+Auction average duration:	123259.55999999995
+Session min time:	123848.0
+Session max time:	124174.0
+Bids per minute:	7877.878031219841
+Higest recorded bid:	12240.3
+
+Testsettings 3 on Machine 2:
+Processor usage: ~190-200%
+Auction success ratio:	0.6666666666666666
+Auction average duration:	83553.0
+Session min time:	36788.0
+Session max time:	43009.0
+Bids per minute:	164.22563053380242
+Higest recorded bid:	10075.3
+
+
+Test duration for each run was 2 minutes.
 
