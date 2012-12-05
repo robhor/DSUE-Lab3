@@ -184,13 +184,13 @@ public class TestClient extends Thread {
 	
 	private void write(String str) {
 		if (DEBUG) System.out.println("write: " + str);
-		client.getWriter().println(str);
+		client.getChannel().send(str);
 	}
 	
 	private String read() {
 		String line;
 		try {
-			line = client.getReader().readLine();
+			line = client.getChannel().read();
 			if (DEBUG) System.out.println("read: " + line);
 		} catch (IOException e) {
 			e.printStackTrace();

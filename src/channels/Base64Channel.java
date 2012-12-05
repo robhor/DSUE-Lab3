@@ -14,11 +14,13 @@ public class Base64Channel implements Channel {
 	@Override
 	public String read() throws IOException {
 		String msg = channel.read();
+		if (msg == null) return null;
+		
 		return new String(Base64.decode(msg));
 	}
 
 	@Override
-	public void send(String message) throws IOException {
+	public void send(String message) {
 		byte[] encoded = Base64.encode(message.getBytes());
 		channel.send(new String(encoded));
 	}

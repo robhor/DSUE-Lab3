@@ -13,9 +13,8 @@ public interface Channel {
 	/**
 	 * Write to the channel
 	 * @param message to write
-	 * @throws IOException
 	 */
-	void send(String message) throws IOException;
+	void send(String message);
 	
 	/**
 	 * Closes the channel

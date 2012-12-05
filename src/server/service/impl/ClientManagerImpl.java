@@ -1,9 +1,6 @@
 package server.service.impl;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
@@ -14,6 +11,9 @@ import java.util.logging.Logger;
 
 import server.bean.Client;
 import server.service.ClientManager;
+import channels.Base64Channel;
+import channels.Channel;
+import channels.TCPChannel;
 
 public class ClientManagerImpl implements ClientManager {
 	private static boolean DISABLE_UDP = true;
@@ -28,16 +28,14 @@ public class ClientManagerImpl implements ClientManager {
 	@Override
 	public Client newClient(Socket clientSocket) {
 		Client client = new Client();
-		client.setTcpSocket(clientSocket);
+		client.setInetAddress(clientSocket.getInetAddress());
 		
 		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-			PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-			
-			client.setReader(in);
-			client.setWriter(out);
+			Channel channel = new TCPChannel(clientSocket);
+			channel = new Base64Channel(channel);
+			client.setChannel(channel);
 		} catch (IOException e) {
-			logger.log(Level.WARNING, "In/Output-Stream-Reader/Writer could not be created\n" + e);
+			logger.log(Level.SEVERE, "Channel could not be created! " + e.getMessage());
 			return null;
 		}
 		
@@ -54,9 +52,7 @@ public class ClientManagerImpl implements ClientManager {
 		}
 		
 		try {
-			client.getTcpSocket().close();
-			client.getReader().close();
-			client.getWriter().close();
+			client.getChannel().close();
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Client socket could not be closed");
 		}
@@ -65,7 +61,7 @@ public class ClientManagerImpl implements ClientManager {
 	@Override
 	public void sendMessage(Client client, String message) {
 		synchronized (client) {
-			client.getWriter().println(message);
+			client.getChannel().send(message);
 		}
 	}
 
@@ -78,7 +74,7 @@ public class ClientManagerImpl implements ClientManager {
 		if (client.getUdpPort() == 0) return;
 		
 		byte[] buf = message.getBytes();
-		DatagramPacket p = new DatagramPacket(buf, buf.length, client.getTcpSocket().getInetAddress(), client.getUdpPort());
+		DatagramPacket p = new DatagramPacket(buf, buf.length, client.getInetAddress(), client.getUdpPort());
 		
 		DatagramSocket sock;
 		try {
@@ -94,7 +90,7 @@ public class ClientManagerImpl implements ClientManager {
 	@Override
 	public String receiveMessage(Client client) {
 		try {
-			String line = client.getReader().readLine();
+			String line = client.getChannel().read();
 			return line;
 		} catch (IOException e) {
 			logger.log(Level.FINE, "Socket closed\n" + e);

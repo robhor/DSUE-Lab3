@@ -15,7 +15,7 @@ import server.service.impl.ClientManagerImpl;
 public class AuctionClient {
 	private static final boolean UDP_ENABLED = false; // disabled in lab2
 	
-	private static final String USAGE = "USAGE: host tcpPort udpPort";
+	private static final String USAGE = "USAGE: host hostPort udpPort serverPublicKey clientKeyDir";
 	
 	private ClientManager clManager;
 	private Client server;
@@ -31,7 +31,7 @@ public class AuctionClient {
 		String host;
 		Integer tcpPort, udpPort;
 		
-		if (args.length != 3) {
+		if (args.length != 5) {
 			System.out.println(USAGE);
 			return;
 		}
@@ -44,6 +44,9 @@ public class AuctionClient {
 			System.err.println(USAGE);
 			return;
 		}
+		
+		// String serverPublicKeyPath = args[3];
+		// String clientKeyDirPath = args[4];
 		
 		if (!UDP_ENABLED) udpPort = 0;
 		

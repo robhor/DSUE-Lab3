@@ -1,24 +1,22 @@
 package server.bean;
 
-import java.io.BufferedReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.net.InetAddress;
+
+import channels.Channel;
 
 /**
  * Encapsulates all information about a connected client 
  */
 public class Client {
-	private Socket tcpSocket;
-	private int    udpPort;
-	
-	private BufferedReader reader;
-	private PrintWriter    writer;
-	
-	public Socket getTcpSocket() {
-		return tcpSocket;
+	private Channel channel;
+	private InetAddress inetAddress;
+	private int     udpPort;
+		
+	public Channel getChannel() {
+		return channel;
 	}
-	public void setTcpSocket(Socket tcpSocket) {
-		this.tcpSocket = tcpSocket;
+	public void setChannel(Channel channel) {
+		this.channel = channel;
 	}
 	public int getUdpPort() {
 		return udpPort;
@@ -26,16 +24,10 @@ public class Client {
 	public void setUdpPort(int udpPort) {
 		this.udpPort = udpPort;
 	}
-	public BufferedReader getReader() {
-		return reader;
+	public InetAddress getInetAddress() {
+		return inetAddress;
 	}
-	public void setReader(BufferedReader reader) {
-		this.reader = reader;
-	}
-	public PrintWriter getWriter() {
-		return writer;
-	}
-	public void setWriter(PrintWriter writer) {
-		this.writer = writer;
+	public void setInetAddress(InetAddress inetAddress) {
+		this.inetAddress = inetAddress;
 	}
 }

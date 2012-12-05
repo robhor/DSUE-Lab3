@@ -50,7 +50,7 @@ public class TCPProtocol {
 		if (token.equals(CMD_LOGIN)) {
 			if(!login(input)) return false;
 		} else if (token.equals(CMD_LOGOUT)) {
-			server.getWriter().println(input);
+			server.getChannel().send(input);
 			
 			if (isLoggedIn()) {
 				System.out.println("Successfully logged out");
