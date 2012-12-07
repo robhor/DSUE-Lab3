@@ -8,13 +8,13 @@ public interface Channel {
 	 * @return read line
 	 * @throws IOException
 	 */
-	String read() throws IOException;
+	byte[] read() throws IOException;
 	
 	/**
 	 * Write to the channel
 	 * @param message to write
 	 */
-	void send(String message);
+	void send(byte[] message);
 	
 	/**
 	 * Closes the channel

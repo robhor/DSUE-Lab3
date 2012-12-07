@@ -5,19 +5,32 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.bouncycastle.util.encoders.Base64;
 
 import server.bean.Client;
 import server.service.ClientManager;
 import channels.Base64Channel;
 import channels.Channel;
+import channels.CipherChannel;
 import channels.TCPChannel;
 
 public class ClientManagerImpl implements ClientManager {
 	private static boolean DISABLE_UDP = true;
 	
+	private static final String CIPHER = "AES/CTR/NoPadding";
 	private Logger logger = Logger.getLogger(this.getClass().getName());
 	private ArrayList<Client> clients;
 	
@@ -33,7 +46,10 @@ public class ClientManagerImpl implements ClientManager {
 		try {
 			Channel channel = new TCPChannel(clientSocket);
 			channel = new Base64Channel(channel);
-			client.setChannel(channel);
+			CipherChannel cipherChannel = new CipherChannel(channel);
+			
+			client.setChannel(cipherChannel);
+			client.setCipherChannel(cipherChannel);
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, "Channel could not be created! " + e.getMessage());
 			return null;
@@ -61,7 +77,7 @@ public class ClientManagerImpl implements ClientManager {
 	@Override
 	public void sendMessage(Client client, String message) {
 		synchronized (client) {
-			client.getChannel().send(message);
+			client.getChannel().send(message.getBytes());
 		}
 	}
 
@@ -90,12 +106,46 @@ public class ClientManagerImpl implements ClientManager {
 	@Override
 	public String receiveMessage(Client client) {
 		try {
-			String line = client.getChannel().read();
+			String line = new String(client.getChannel().read());
 			return line;
 		} catch (IOException e) {
 			logger.log(Level.FINE, "Socket closed\n" + e);
 			return null;
 		}
+	}
+
+	@Override
+	public void secureConnection(Client client, byte[] secret64, byte[] iv64) {
+		CipherChannel channel = client.getCipherChannel();
+		
+		SecretKey secretKey = new SecretKeySpec(Base64.decode(iv64), CIPHER);
+		byte[] iv = Base64.decode(iv64);
+		
+		try {
+			Cipher encryptCipher = Cipher.getInstance(CIPHER);
+			Cipher decryptCipher = Cipher.getInstance(CIPHER);
+			
+			IvParameterSpec ivp = new IvParameterSpec(iv);
+			
+			encryptCipher.init(Cipher.ENCRYPT_MODE, secretKey, ivp);
+			decryptCipher.init(Cipher.DECRYPT_MODE, secretKey, ivp);
+			
+			channel.setCipher(encryptCipher, decryptCipher);
+		} catch (NoSuchAlgorithmException e) {
+			logger.log(Level.SEVERE, "No such algorithm: " + e.getMessage());
+		} catch (NoSuchPaddingException e) {
+			logger.log(Level.SEVERE, "No such padding: " + e.getMessage());
+		} catch (InvalidKeyException e) {
+			logger.log(Level.SEVERE, "Invalid key: " + e.getMessage());
+		} catch (InvalidAlgorithmParameterException e) {
+			logger.log(Level.SEVERE, "Invalid algorithm parameter: " + e.getMessage());
+		}
+	}
+	
+	@Override
+	public void unsecureConnection(Client client) {
+		CipherChannel channel = client.getCipherChannel();
+		channel.setCipher(null, null);
 	}
 
 	@Override

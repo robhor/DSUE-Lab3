@@ -30,6 +30,12 @@ public interface UserManager {
 	User login(String username, Client client);
 	
 	/**
+	 * @param username
+	 * @return true if given user is already logged in
+	 */
+	boolean isLoggedIn(String username);
+	
+	/**
 	 * Sends a message reliably to the given User (over TCP).
 	 * @param user
 	 * @param message

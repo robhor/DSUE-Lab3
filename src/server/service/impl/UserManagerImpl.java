@@ -54,15 +54,10 @@ public class UserManagerImpl implements UserManager {
 		if (username == null) throw new IllegalArgumentException("Username can't be null!");
 		if (client   == null) throw new IllegalArgumentException("Client can't be null!");
 		
-		// check if already registered user
-		User user = users.get(username);
-		if (user != null) {
-			if (user.getClient() != null) return null; // Can't log in on two machines
-		} else {
-			user = new User();
-			user.setName(username);
-		}
+		// check if already logged in user
+		if (isLoggedIn(username)) return null;
 		
+		User user = getUser(username);
 		user.setClient(client);
 		users.put(username, user);
 
@@ -71,6 +66,26 @@ public class UserManagerImpl implements UserManager {
 		analyticsServer.processEvent(event);
 		
 		sendQueuedNotifications(user);
+		
+		return user;
+	}
+
+	@Override
+	public boolean isLoggedIn(String username) {
+		User user = users.get(username);
+		
+		if (user == null) return false;
+		if (user.getClient() == null) return false;
+		
+		return true;
+	}
+	
+	private User getUser(String username) {
+		User user = users.get(username);
+		if (user == null) {
+			user = new User();
+			user.setName(username);
+		}
 		
 		return user;
 	}

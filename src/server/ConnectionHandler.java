@@ -1,8 +1,17 @@
 package server;
+import java.io.IOException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.crypto.SecretKey;
+
+import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.encoders.Base64;
 
 import server.bean.Auction;
 import server.bean.Client;
@@ -10,6 +19,7 @@ import server.bean.User;
 import server.service.AuctionManager;
 import server.service.ClientManager;
 import server.service.UserManager;
+import util.SecurityUtils;
 import client.TCPProtocol;
 
 
@@ -21,34 +31,42 @@ public class ConnectionHandler implements Runnable {
 	private ClientManager clManager;
 	private UserManager usManager;
 	private AuctionManager auManager;
+	private PrivateKey privateKey;
+	private String clientKeyDir;
 	
-	public ConnectionHandler(Client client, ClientManager clManager, UserManager usManager, AuctionManager auManager) {
+	public ConnectionHandler(Client client, ClientManager clManager, UserManager usManager,
+							 AuctionManager auManager, PrivateKey privateKey, String clientKeyDir) {
 		this.client = client;
 		this.clManager = clManager;
 		this.usManager = usManager;
 		this.auManager = auManager;
+		this.privateKey = privateKey;
+		this.clientKeyDir = clientKeyDir;
 	}
 
 	@Override
 	public void run() {
 		// listen for messages
-		String input;
-		while ((input = clManager.receiveMessage(client)) != null) {
-			processMessage(input);
+		byte[] input;
+		try {
+			while ((input = client.getChannel().read()) != null) {
+				processMessage(input);
+			}
+		} catch (IOException e) {
+			logger.log(Level.FINE, "Client disconnected");
+		} finally {	
+			// close resources
+			if (user != null) usManager.disconnect(user);
+			clManager.disconnect(client);
 		}
-		
-		// close resources
-		if (user != null) usManager.disconnect(user);
-		clManager.disconnect(client);
 	}
 	
-	private void processMessage(String msg) {
+	private void processMessage(byte[] message) {
+		String msg = new String(message);
 		String[] tokens = msg.split(" ");
 		String cmd = tokens[0];
 		
-		if (cmd.equals(TCPProtocol.CMD_LOGIN)) {
-			login(tokens);
-		} else if (cmd.equals(TCPProtocol.CMD_LOGOUT)) {
+		if (cmd.equals(TCPProtocol.CMD_LOGOUT)) {
 			logout(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_CREATE)) {
 			createAuction(tokens);
@@ -56,37 +74,97 @@ public class ConnectionHandler implements Runnable {
 			listAuctions(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_BID)) {
 			bid(tokens);
-		}
-	}
-	
-	private void login(String[] tokens) {
-		if (tokens.length < 2) return;
-		
-		String name = tokens[1];
-		
-		User newUser = usManager.login(name, client);
-		if (newUser == null) {
-			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
-			return;
+		} else if (cmd.equals(TCPProtocol.CMD_UDP)) {
+			setUdp(tokens);
 		} else {
-			if (user != null) usManager.logout(user);
-			user = newUser;
-			clManager.sendMessage(client, TCPProtocol.RESPONSE_SUCCESS);
-		}
-		
-		if (tokens.length >= 3) {
-			int udpPort;
-			try {
-				udpPort = Integer.valueOf(tokens[2]);
-				client.setUdpPort(udpPort);
-			} catch (NumberFormatException e) {
-				logger.log(Level.INFO, "Received invalid udpPort");
+			// could be encrypted !login message
+			msg = new String(SecurityUtils.decryptRSA(message, privateKey));
+			
+			tokens = msg.split(" ");
+			cmd = tokens[0];
+			
+			if (cmd.equals(TCPProtocol.CMD_LOGIN)) {
+				login(tokens);
 			}
 		}
 	}
 	
+	private void login(String[] tokens) {
+		// begin handshake
+		/* **************************************************************************************
+		 *                  Step 1: receive !login <username> <client-challenge>
+		 * **************************************************************************************/
+		if (tokens.length < 3) {
+			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		String name = tokens[1];
+		String clientChallenge = tokens[2];
+		
+		// check if logged in already beforehand
+		if (usManager.isLoggedIn(name)) {
+			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		
+		/* **************************************************************************************
+		 *   Step 2: send !ok <client-challenge> <server-challenge> <secret-key> <iv-parameter>
+		 * **************************************************************************************/
+		
+		// generate server challenge
+		SecureRandom secureRandom = new SecureRandom(); 
+		final byte[] serverChallenge = new byte[32];
+		secureRandom.nextBytes(serverChallenge);
+		String serverChallenge64 = new String(Base64.encode(serverChallenge));
+		
+		
+		// generate secret key
+		SecretKey key = SecurityUtils.getSecretKey(TCPProtocol.KEYSIZE);
+		String secretKey = new String(Base64.encode(key.getEncoded()));
+		
+		// generate iv
+		final byte[] iv = new byte[16]; 
+		secureRandom.nextBytes(iv);
+		String iv64 = new String(Base64.encode(iv));
+		
+		
+		String msg = String.format("%s %s %s %s %s", TCPProtocol.RESPONSE_SUCCESS,
+								   clientChallenge, serverChallenge64, secretKey, iv64);
+		
+		// encrypt using client's public key
+		PublicKey clientKey = null;
+		try {
+			clientKey = SecurityUtils.getPublicKey(clientKeyDir + name + ".pub.pem");
+		} catch (IOException e) {
+			logger.log(Level.INFO, "Public key of user " + name + " could not be read.");
+		}
+		
+		client.getChannel().send(SecurityUtils.encryptRSA(msg.getBytes(), clientKey));
+		
+		/* **************************************************************************************
+		 *                         Step 3: receive <server-challenge>
+		 * **************************************************************************************/
+		// secure channel should be created now!
+		clManager.secureConnection(client, serverChallenge64.getBytes(), iv64.getBytes());
+		
+		try {
+			byte[] response = client.getChannel().read();
+			if (!Arrays.areEqual(Base64.decode(response), serverChallenge)) return;
+		} catch (IOException e) {
+			return;
+		}
+		
+		// handshake successful
+		if (user != null) usManager.logout(user);
+		user = usManager.login(name, client);
+	}
+	
 	private void logout(String[] tokens) {
 		usManager.logout(user);
+		clManager.unsecureConnection(client);
+		
 		user = null;
 	}
 	
@@ -189,4 +267,22 @@ public class ConnectionHandler implements Runnable {
 		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getName());
 		usManager.sendMessage(user, msg);
 	}
+
+	private void setUdp(String[] tokens) {
+		if (user == null) return;
+		if (tokens.length < 2) return;
+		
+		Integer udpPort;
+		try {
+			udpPort = Integer.parseInt(tokens[1]);
+		} catch (NumberFormatException e) {
+			logger.log(Level.FINE, "Invalid udp-port received (" + tokens[1] + ")");
+			return;
+		}
+		
+		client.setUdpPort(udpPort);
+	}
+	
+	
+	
 }

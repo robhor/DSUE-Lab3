@@ -1,18 +1,18 @@
 package server;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.rmi.AccessException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.security.PrivateKey;
 import java.util.Properties;
 import java.util.logging.Logger;
-
-import analytics.AnalyticsServer;
-import billing.BillingServer;
-import billing.BillingServerSecure;
 
 import server.bean.User;
 import server.service.AuctionManager;
@@ -23,6 +23,10 @@ import server.service.impl.AuctionManagerImpl;
 import server.service.impl.ClientManagerImpl;
 import server.service.impl.UserManagerImpl;
 import util.PropertyReader;
+import util.SecurityUtils;
+import analytics.AnalyticsServer;
+import billing.BillingServer;
+import billing.BillingServerSecure;
 
 
 public class AuctionServer {
@@ -40,12 +44,14 @@ public class AuctionServer {
 	private static BillingServerSecure billingServer;
 	private static AnalyticsServer analyticsServer;
 	
+	private static PrivateKey privateKey;
+	
 	public static void main(String[] args) {
 		int tcpPort = 0;
 		
 		// Parse Arguments 
-		if (args.length < 3) {
-			System.out.println("USAGE: java AuctionServer tcpPort analyticsBindingName billingBindingName");
+		if (args.length < 5) {
+			System.out.println("USAGE: java AuctionServer tcpPort analyticsBindingName billingBindingName serverKey clientKeyDir");
 			System.exit(1);
 		}
 		try {
@@ -57,6 +63,11 @@ public class AuctionServer {
 		
 		String analyticsBindingName = args[1];
 		String billingBindingName = args[2];
+		
+		String serverKeyPath = args[3];
+		String clientKeyDir  = args[4];
+		
+		getPrivateKey(serverKeyPath);
 		
 		// Get external servers from registry
 		try {
@@ -81,7 +92,7 @@ public class AuctionServer {
 		
 		// Accept connections
 		ConnectionDispatcher dispatcher = 
-				new ConnectionDispatcher(socket, clManager, usManager, auManager);
+				new ConnectionDispatcher(socket, clManager, usManager, auManager, privateKey, clientKeyDir);
 		Thread serverThread = new Thread(dispatcher);
 		serverThread.start();
 		
@@ -134,6 +145,20 @@ public class AuctionServer {
 			} catch (RemoteException e) {
 				throw new AuctionException("Registry could not be accessed", e);
 			}
+		}
+	}
+	
+	private static void getPrivateKey(String path) {
+		try {
+			System.out.println("Enter pass phrase:");
+			String pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
+			privateKey = SecurityUtils.getPrivateKey(path, pass);
+		} catch (FileNotFoundException e) {
+			System.err.println("Private Key file not found!");
+			System.exit(1);
+		} catch (IOException e) {
+			System.err.println("Could not read private key. Check your password.");
+			System.exit(1);
 		}
 	}
 	

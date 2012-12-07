@@ -1,30 +1,55 @@
 package client;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.encoders.Base64;
 
 import server.bean.Client;
 import server.service.ClientManager;
+import util.SecurityUtils;
 
+/**
+ * Protocol the client uses to communicate with the auction server
+ */
 public class TCPProtocol {
+	public static final int    KEYSIZE    = 256; /** Keysize for AES-Cipher */
+	
 	public static final String CMD_LOGIN  = "!login";
 	public static final String CMD_LOGOUT = "!logout";
 	public static final String CMD_LIST   = "!list";
 	public static final String CMD_CREATE = "!create";
 	public static final String CMD_BID    = "!bid";
 	public static final String CMD_EXIT   = "!end";
+	public static final String CMD_UDP    = "!udp";
 	
 	public static final String RESPONSE_FAIL       = "!fail";
 	public static final String RESPONSE_SUCCESS    = "!ok";
 	public static final String RESPONSE_NO_AUCTION = "!no-auction";
 	
+	private Logger logger = Logger.getLogger(TCPProtocol.class.getSimpleName());
+	
 	private ClientManager clManager;
 	private String user;
 	private Client server;
 	private int udpPort;
-	private UDPProtocol udpProtocol;
 	
-	public TCPProtocol(ClientManager clManager) {
+	private UDPProtocol udpProtocol;
+	private PublicKey serverKey;
+	private String clientKeyDir;
+	
+	public TCPProtocol(ClientManager clManager, PublicKey serverKey, String clientKeyDir) {
 		this.clManager = clManager;
+		this.serverKey = serverKey;
+		this.clientKeyDir = clientKeyDir;
 		this.user = null;
 	}
 	
@@ -50,7 +75,7 @@ public class TCPProtocol {
 		if (token.equals(CMD_LOGIN)) {
 			if(!login(input)) return false;
 		} else if (token.equals(CMD_LOGOUT)) {
-			server.getChannel().send(input);
+			clManager.sendMessage(server, CMD_LOGOUT);
 			
 			if (isLoggedIn()) {
 				System.out.println("Successfully logged out");
@@ -59,6 +84,7 @@ public class TCPProtocol {
 			}
 			
 			user = null;
+			clManager.unsecureConnection(server);
 			if (udpProtocol != null) udpProtocol.setUser(null);
 		} else if (token.equals(CMD_EXIT)) {
 			return false;
@@ -70,32 +96,115 @@ public class TCPProtocol {
 			if (!bid(input)) return false;
 		} else {
 			System.out.println("unknown command");
-			clManager.sendMessage(server, input);
 		}
 		
 		return true;
 	}
 	
 	private boolean login(String input) {
-		if (input == null) return true;
+		// parse input
 		String[] tokens = input.split(" ");
 		if (tokens.length < 2) return true;
-		
 		String username = tokens[1];
 		if (udpProtocol != null) udpProtocol.setUser(username);
-		clManager.sendMessage(server, CMD_LOGIN + " " + username + " " + udpPort);
 		
-		String response = clManager.receiveMessage(server);
-		if (response == null) return false;
-		
-		if (response.equals(RESPONSE_SUCCESS)) {
-			user = username;
-			
+		if (loginUser(username)) {
 			System.out.println("Successfully logged in as " + user + "!");
 		} else {
 			if (udpProtocol != null) udpProtocol.setUser(user);
 			System.out.println("Login unsuccessful");
 		}
+		return true;
+	}
+	
+	/**
+	 * Logs in the user with the given username
+	 * @param username
+	 * @return true if login was successful
+	 */
+	private boolean loginUser(String username) {
+		// check if user exists by checking if .pem exists
+		String clientKeyPath = clientKeyDir + username + ".pem";
+		File f = new File(clientKeyPath);
+		if (!f.exists()) return false;
+		
+		String pass;
+		PrivateKey privateKey;
+		try {
+			System.out.println("Enter pass phrase:");
+			pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
+			privateKey = SecurityUtils.getPrivateKey(clientKeyPath, pass);
+		} catch (IOException e) {
+			logger.log(Level.INFO, "Private key could not be read");
+			return false;
+		}
+
+		
+		boolean handshakeSuccessful = false;
+		try {
+			handshakeSuccessful = handshake(username, privateKey);
+		} catch (IOException e) {
+			logger.log(Level.WARNING, "IOException during handshake: " + e.getMessage());
+		}
+		
+		if (!handshakeSuccessful) return false;
+		
+		user = username;
+		
+		// set udp port
+		clManager.sendMessage(server, CMD_UDP + " " + udpPort);
+		
+		return true;
+	}
+	
+	private boolean handshake(String username, PrivateKey privateKey) throws IOException {
+		String message;
+		String[] tokens;
+		
+		byte[] msg;
+		byte[] clientChallenge;
+		
+		
+		/* **************************************************************************************
+		 *                     Step 1: send !login <username> <clientChallenge>
+		 * **************************************************************************************/
+		clientChallenge = SecurityUtils.generateNumber(32);
+		String clientChallenge64 = new String(Base64.encode(clientChallenge));
+		
+		message = String.format("%s %s %s", CMD_LOGIN, username, clientChallenge64);
+		msg = SecurityUtils.encryptRSA(message.getBytes(), serverKey);
+		
+		server.getChannel().send(msg);
+		
+		/* **************************************************************************************
+		 * Step 2: receive !ok <client-challenge> <server-challenge> <secret-key> <iv-parameter>
+		 * **************************************************************************************/
+		msg = server.getChannel().read();
+		if (new String(msg).equals(RESPONSE_FAIL)) return false;
+		msg = SecurityUtils.decryptRSA(msg, privateKey);
+		
+		message = new String(msg);
+		tokens = message.split(" ");
+		
+		if (!tokens[0].equals(RESPONSE_SUCCESS)) return false;
+		
+		// check clientChallenge
+		if (!Arrays.areEqual(clientChallenge, Base64.decode(tokens[1].getBytes()))) {
+			logger.log(Level.INFO, "Server got the client challenge wrong");
+			return false;
+		}
+		
+		String serverChallenge = tokens[2];
+		String secretKey64 = tokens[3];
+		String iv64 = tokens[4];
+		
+		// establish encrypted channel
+		clManager.secureConnection(server, secretKey64.getBytes(), iv64.getBytes());
+		
+		/* **************************************************************************************
+		 *                              Step 3: send <server-challenge>
+		 * **************************************************************************************/
+		server.getChannel().send(serverChallenge.getBytes());
 		
 		return true;
 	}

@@ -6,11 +6,13 @@ import java.net.DatagramSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.security.PublicKey;
 import java.util.Scanner;
 
 import server.bean.Client;
 import server.service.ClientManager;
 import server.service.impl.ClientManagerImpl;
+import util.SecurityUtils;
 
 public class AuctionClient {
 	private static final boolean UDP_ENABLED = false; // disabled in lab2
@@ -45,12 +47,21 @@ public class AuctionClient {
 			return;
 		}
 		
-		// String serverPublicKeyPath = args[3];
-		// String clientKeyDirPath = args[4];
+		String serverPublicKeyPath = args[3];
+		PublicKey serverKey;
+		
+		String clientKeyDirPath = args[4];
+		
+		try {
+			serverKey = SecurityUtils.getPublicKey(serverPublicKeyPath);
+		} catch (IOException e) {
+			System.err.println("Server's Public Key could not be read.");
+			return;
+		}
 		
 		if (!UDP_ENABLED) udpPort = 0;
 		
-		AuctionClient client = new AuctionClient(host, tcpPort, udpPort);
+		AuctionClient client = new AuctionClient(host, tcpPort, udpPort, serverKey, clientKeyDirPath);
 
 		System.out.println("Client ready.");
 		
@@ -61,7 +72,7 @@ public class AuctionClient {
 		client.shutdown();
 	}
 	
-	public AuctionClient(String host, int tcpPort, int udpPort) {
+	public AuctionClient(String host, int tcpPort, int udpPort, PublicKey serverKey, String clientKeyDir) {
 		// establish connection
 		socket = null;
 		clManager = new ClientManagerImpl();
@@ -78,7 +89,7 @@ public class AuctionClient {
 		
 		server = clManager.newClient(socket);
 		
-		tcpProtocol = new TCPProtocol(clManager);
+		tcpProtocol = new TCPProtocol(clManager, serverKey, clientKeyDir);
 		tcpProtocol.setServer(server);
 		tcpProtocol.setUdpPort(udpPort);
 		

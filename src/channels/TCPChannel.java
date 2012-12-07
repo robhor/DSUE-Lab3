@@ -19,13 +19,14 @@ public class TCPChannel implements Channel {
 	}
 
 	@Override
-	public String read() throws IOException {
-		return reader.readLine();
+	public byte[] read() throws IOException {
+		String line = reader.readLine();
+		return (line == null) ? null : line.getBytes();
 	}
 
 	@Override
-	public void send(String message) {
-		writer.println(message);
+	public void send(byte[] message) {
+		writer.println(new String(message));
 	}
 
 	@Override

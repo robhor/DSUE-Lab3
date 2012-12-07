@@ -40,6 +40,20 @@ public interface ClientManager {
 	String receiveMessage(Client client);
 	
 	/**
+	 * Upgrades this clients channel to a secure channel
+	 * @param client
+	 * @param secret
+	 * @param iv
+	 */
+	void secureConnection(Client client, byte[] secret64, byte[] iv64);
+	
+	/**
+	 * Downgrades this clients channel to an insecure channel
+	 * @param client
+	 */
+	void unsecureConnection(Client client);
+	
+	/**
 	 * Disconnects every client
 	 */
 	void disconnectAll();

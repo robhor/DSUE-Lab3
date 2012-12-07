@@ -3,12 +3,14 @@ package server.bean;
 import java.net.InetAddress;
 
 import channels.Channel;
+import channels.CipherChannel;
 
 /**
  * Encapsulates all information about a connected client 
  */
 public class Client {
 	private Channel channel;
+	private CipherChannel cipherChannel;
 	private InetAddress inetAddress;
 	private int     udpPort;
 		
@@ -29,5 +31,11 @@ public class Client {
 	}
 	public void setInetAddress(InetAddress inetAddress) {
 		this.inetAddress = inetAddress;
+	}
+	public CipherChannel getCipherChannel() {
+		return cipherChannel;
+	}
+	public void setCipherChannel(CipherChannel cipherChannel) {
+		this.cipherChannel = cipherChannel;
 	}
 }
