@@ -151,9 +151,6 @@ public class TCPProtocol {
 		
 		user = username;
 		
-		// set udp port
-		clManager.sendMessage(server, CMD_UDP + " " + udpPort);
-		
 		return true;
 	}
 	
