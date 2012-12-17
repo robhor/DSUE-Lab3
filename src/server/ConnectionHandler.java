@@ -92,15 +92,16 @@ public class ConnectionHandler implements Runnable {
 	private void login(String[] tokens) {
 		// begin handshake
 		/* **************************************************************************************
-		 *                  Step 1: receive !login <username> <client-challenge>
+		 *              Step 1: receive !login <username> <tcpPort> <client-challenge>
 		 * **************************************************************************************/
-		if (tokens.length < 3) {
+		if (tokens.length < 4) {
 			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
 			return;
 		}
 		
 		String name = tokens[1];
-		String clientChallenge = tokens[2];
+		Integer tcpPort = Integer.parseInt(tokens[2]); // TODO tcpPort is required for stage 4
+		String clientChallenge = tokens[3];
 		
 		// check if logged in already beforehand
 		if (usManager.isLoggedIn(name)) {

@@ -166,12 +166,14 @@ public class TCPProtocol {
 		
 		
 		/* **************************************************************************************
-		 *                     Step 1: send !login <username> <clientChallenge>
+		 *              Step 1: send !login <username> <tcpPort> <clientChallenge>
 		 * **************************************************************************************/
+		int tcpPort = 0; // TODO tcpPort is required for stage 4
+		
 		clientChallenge = SecurityUtils.generateNumber(32);
 		String clientChallenge64 = new String(Base64.encode(clientChallenge));
 		
-		message = String.format("%s %s %s", CMD_LOGIN, username, clientChallenge64);
+		message = String.format("%s %s %d %s", CMD_LOGIN, username, tcpPort, clientChallenge64);
 		msg = SecurityUtils.encryptRSA(message.getBytes(), serverKey);
 		
 		server.getChannel().send(msg);
