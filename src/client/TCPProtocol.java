@@ -10,6 +10,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -433,8 +434,17 @@ public class TCPProtocol {
 			return;
 		}
 		
-		if (server == null) signedBid(id, bid);
-		else onlineBid(id, bid);
+		try {
+			if (server != null) {
+				onlineBid(id, bid);
+				return;
+			}
+		} catch (IOException e) {
+			// server offline, use signedBid
+			serverDisconnect();
+		}
+		
+		signedBid(id, bid);
 	}
 	
 	private void onlineBid(int id, double bid) throws IOException {
@@ -470,11 +480,46 @@ public class TCPProtocol {
 	}
 	
 	private void signedBid(int id, double bid) {
-		// TODO contact neighbors
-		// let them give you a nice timestamp
-		// save 'em for later login
-		
 		Collections.shuffle(activeUsers);
+		
+		String sign1 = null;
+		String sign2 = null;
+		
+		Iterator<TimestampServerRecord> it = activeUsers.iterator();
+		while (it.hasNext()) {
+			TimestampServerRecord rec = it.next();
+			
+			if (rec.getUser() == user) {
+				it.remove();
+				continue;
+			}
+			
+			String signature = null;
+			try {
+				signature = rec.stamp(id, bid);
+			} catch (IOException e) {}
+			
+			if (signature == null) {
+				it.remove();
+				continue;
+			}
+			
+			if (sign1 == null) {
+				sign1 = signature;
+				continue;
+			} else {
+				sign2 = signature;
+				break;
+			}
+		}
+		
+		if (sign2 == null) {
+			// TODO fail because not enough to sign
+			System.out.println("Failed: Not enough users online to sign");
+		} else {
+			// TODO save signedBid
+			System.out.println("!signedBid " + id + " " + bid + " " + sign1 + " " + sign2);
+		}
 	}
 
 	private boolean isLoggedIn() {

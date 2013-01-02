@@ -5,6 +5,8 @@ import java.net.Socket;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import client.TCPProtocol;
+
 import server.bean.Client;
 import server.service.ClientManager;
 import server.service.impl.ClientManagerImpl;
@@ -41,7 +43,7 @@ public class TimestampServerRecord {
 		ClientManager clm = new ClientManagerImpl();
 		Client client = clm.newClient(socket);
 		
-		String msg = String.format("!getTimestamp %d %f", id, amount);
+		String msg = String.format("%s %d %f", TCPProtocol.CMD_GET_TIMESTAMP, id, amount);
 		clm.sendMessage(client, msg);
 		
 		msg = clm.receiveMessage(client);
@@ -56,6 +58,18 @@ public class TimestampServerRecord {
 	
 	public String toString() {
 		return host + ":" + port + " - " + user;
+	}
+
+	public String getUser() {
+		return user;
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public int getPort() {
+		return port;
 	}
 
 	@Override

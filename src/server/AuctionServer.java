@@ -206,7 +206,6 @@ public class AuctionServer {
 		}
 		
 		clManager.disconnectAll();
-		// TODO freeze auctions.. or not.. however it will be implemented
 	}
 	
 	private static void shutdown() {
