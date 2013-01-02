@@ -23,13 +23,14 @@ import util.SecurityUtils;
 public class TCPProtocol {
 	public static final int    KEYSIZE    = 256; /** Keysize for AES-Cipher */
 	
-	public static final String CMD_LOGIN  = "!login";
-	public static final String CMD_LOGOUT = "!logout";
-	public static final String CMD_LIST   = "!list";
-	public static final String CMD_CREATE = "!create";
-	public static final String CMD_BID    = "!bid";
-	public static final String CMD_EXIT   = "!end";
-	public static final String CMD_UDP    = "!udp";
+    public static final String CMD_LOGIN        = "!login";
+	public static final String CMD_LOGOUT       = "!logout";
+	public static final String CMD_LIST         = "!list";
+	public static final String CMD_CREATE       = "!create";
+	public static final String CMD_BID          = "!bid";
+	public static final String CMD_EXIT         = "!end";
+	public static final String CMD_UDP          = "!udp";
+	public static final String CMD_ACTIVE_USERS = "!getClientList";
 	
 	public static final String RESPONSE_FAIL       = "!fail";
 	public static final String RESPONSE_SUCCESS    = "!ok";
@@ -94,6 +95,8 @@ public class TCPProtocol {
 			if (!createAuction(input)) return false;
 		} else if (token.equals(CMD_BID)) {
 			if (!bid(input)) return false;
+		} else if (token.equals(CMD_ACTIVE_USERS)) {
+			if (!listActiveUsers()) return false;
 		} else {
 			System.out.println("unknown command");
 		}
@@ -222,6 +225,15 @@ public class TCPProtocol {
 		return true;
 	}
 	
+	private boolean listActiveUsers() {
+		clManager.sendMessage(server, CMD_ACTIVE_USERS);
+		String msg = clManager.receiveMessage(server);
+		
+		System.out.println(msg);
+		
+		return true;
+	}
+
 	private boolean createAuction(String input) {
 		// !create <duration> <description>
 		if (!isLoggedIn()) {

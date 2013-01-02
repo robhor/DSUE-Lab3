@@ -76,6 +76,8 @@ public class ConnectionHandler implements Runnable {
 			bid(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_UDP)) {
 			setUdp(tokens);
+		} else if (cmd.equals(TCPProtocol.CMD_ACTIVE_USERS)) {
+			listActiveUsers();
 		} else {
 			// could be encrypted !login message
 			msg = new String(SecurityUtils.decryptRSA(message, privateKey));
@@ -100,7 +102,7 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		String name = tokens[1];
-		Integer tcpPort = Integer.parseInt(tokens[2]); // TODO tcpPort is required for stage 4
+		Integer tcpPort = Integer.parseInt(tokens[2]); 
 		String clientChallenge = tokens[3];
 		
 		// check if logged in already beforehand
@@ -160,6 +162,7 @@ public class ConnectionHandler implements Runnable {
 		// handshake successful
 		if (user != null) usManager.logout(user);
 		user = usManager.login(name, client);
+		user.setTcpPort(tcpPort);
 	}
 	
 	private void logout(String[] tokens) {
@@ -282,6 +285,22 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		client.setUdpPort(udpPort);
+	}
+
+	private void listActiveUsers() {
+		String users = "";
+		
+		for (User u : usManager.getUsers()) {
+			if (u.isLoggedIn()) {
+				String ip = u.getClient().getInetAddress().getHostAddress();
+				int port = u.getTcpPort();
+				
+				String addr = String.format("%s:%d - %s", ip, port, u.getName());
+				users += addr + "\n";
+			}
+		}
+		
+		usManager.sendMessage(user, users);
 	}
 	
 	
