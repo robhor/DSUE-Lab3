@@ -49,6 +49,7 @@ public class TCPProtocol {
 	
 	private ClientManager clManager;
 	private String user;
+	private PrivateKey userKey;
 	private int udpPort;
 	
 	private String serverHost;
@@ -99,7 +100,16 @@ public class TCPProtocol {
 			return false;
 		}
 		
-		// TODO auto-relogin
+		reconnectTask.cancel();
+		reconnectTask = null;
+		
+		try {
+			if (user != null && userKey != null && !handshake(user, userKey))
+				logout();
+		} catch (IOException e) {
+			serverDisconnect();
+			return false;
+		}
 		
 		return true;
 	}
@@ -148,8 +158,12 @@ public class TCPProtocol {
 		if (token.equals(CMD_EXIT)) return false;
 		
 		if (server == null) {
-			serverDisconnect();
-			return true;
+			if (!serverReconnect()) {
+				serverDisconnect();
+				// Allow logging out while server unreachable
+				// For safety.
+				if (!token.equals(CMD_LOGOUT)) return true;
+			}
 		}
 		
 		try {
@@ -181,22 +195,23 @@ public class TCPProtocol {
 		} else {
 			System.out.println("You have to log in first!");
 			return;
-
 		}
 		
-		clManager.sendMessage(server, CMD_LOGOUT);
-		
 		try {
-			clManager.receiveMessage(server);
+			if (server != null) {
+				clManager.sendMessage(server, CMD_LOGOUT);
+				clManager.receiveMessage(server);
+			}
 		} finally {
 			user = null;
-			clManager.unsecureConnection(server);
+			userKey = null;
+			if (server != null) clManager.unsecureConnection(server);
 			if (udpProtocol != null) udpProtocol.setUser(null);
 			if (timestampServer != null) timestampServer.setSigningKey(null);
 		}
 	}
 	
-	private void login(String input) {
+	private void login(String input) throws IOException {
 		// parse input
 		String[] tokens = input.split(" ");
 		if (tokens.length < 2) return;
@@ -217,18 +232,17 @@ public class TCPProtocol {
 	 * @param username
 	 * @return true if login was successful
 	 */
-	private boolean loginUser(String username) {
+	private boolean loginUser(String username) throws IOException {
 		// check if user exists by checking if .pem exists
 		String clientKeyPath = clientKeyDir + username + ".pem";
 		File f = new File(clientKeyPath);
 		if (!f.exists()) return false;
 		
 		String pass;
-		PrivateKey privateKey;
 		try {
 			System.out.println("Enter pass phrase:");
 			pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
-			privateKey = SecurityUtils.getPrivateKey(clientKeyPath, pass);
+			userKey = SecurityUtils.getPrivateKey(clientKeyPath, pass);
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Private key could not be read");
 			return false;
@@ -237,17 +251,15 @@ public class TCPProtocol {
 		
 		boolean handshakeSuccessful = false;
 		try {
-			handshakeSuccessful = handshake(username, privateKey);
-		} catch (IOException e) {
-			logger.log(Level.WARNING, "IOException during handshake: " + e.getMessage());
+			handshakeSuccessful = handshake(username, userKey);
+		} finally {
+			if (handshakeSuccessful) {
+				if (timestampServer != null) timestampServer.setSigningKey(userKey);
+				user = username;
+			}
 		}
 		
-		if (!handshakeSuccessful) return false;
-		
-		user = username;
-		if (timestampServer != null) timestampServer.setSigningKey(privateKey);
-		
-		return true;
+		return handshakeSuccessful;
 	}
 	
 	private boolean handshake(String username, PrivateKey privateKey) throws IOException {
