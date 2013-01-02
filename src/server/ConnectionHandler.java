@@ -301,7 +301,8 @@ public class ConnectionHandler implements Runnable {
 			}
 		}
 		
-		usManager.sendMessage(user, users);
+		if (users.equals("")) users = TCPProtocol.RESPONSE_FAIL;
+		clManager.sendMessage(client, users);
 	}
 	
 	

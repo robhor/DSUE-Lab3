@@ -8,6 +8,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -21,6 +23,7 @@ import server.bean.Client;
 import server.service.ClientManager;
 import util.SecurityUtils;
 import client.timestamp.TimestampServer;
+import client.timestamp.TimestampServerRecord;
 
 /**
  * Protocol the client uses to communicate with the auction server
@@ -59,6 +62,7 @@ public class TCPProtocol {
 	
 	private UDPProtocol udpProtocol;
 	private TimestampServer timestampServer;
+	private ArrayList<TimestampServerRecord> activeUsers;
 	private PublicKey serverKey;
 	private String clientKeyDir;
 
@@ -68,6 +72,8 @@ public class TCPProtocol {
 		this.serverKey = serverKey;
 		this.clientKeyDir = clientKeyDir;
 		this.user = null;
+		
+		activeUsers = new ArrayList<TimestampServerRecord>();
 	}
 	
 	public void setUdpPort(Integer udpPort) {
@@ -104,8 +110,13 @@ public class TCPProtocol {
 		reconnectTask = null;
 		
 		try {
-			if (user != null && userKey != null && !handshake(user, userKey))
-				logout();
+			if (user != null && userKey != null) {
+				if (!handshake(user, userKey)) {
+					logout();
+				} else {
+					// TODO send saved up signedBids
+				}
+			}
 		} catch (IOException e) {
 			serverDisconnect();
 			return false;
@@ -157,15 +168,17 @@ public class TCPProtocol {
 		
 		if (token.equals(CMD_EXIT)) return false;
 		
-		if (server == null) {
-			if (!serverReconnect()) {
-				serverDisconnect();
-				// Allow logging out while server unreachable
-				// For safety.
-				if (!token.equals(CMD_LOGOUT)) return true;
-			}
+		if (server == null && !serverReconnect()) {
+			serverDisconnect();
+			
+			// Allow logging out while server unreachable
+			// For safety.
+			// And bidding by means of signedBids
+			if (!token.equals(CMD_LOGOUT) && !token.equals(CMD_BID))
+				return true;
 		}
 		
+		// Commands for connected server
 		try {
 			if (token.equals(CMD_LOGIN)) {
 				login(input);
@@ -176,7 +189,7 @@ public class TCPProtocol {
 			} else if (token.equals(CMD_CREATE)) {
 				createAuction(input);
 			} else if (token.equals(CMD_BID)) {
-				if (!bid(input)) return false;
+				bid(input);
 			} else if (token.equals(CMD_ACTIVE_USERS)) {
 				listActiveUsers();
 			} else {
@@ -327,11 +340,27 @@ public class TCPProtocol {
 		}
 	}
 	
-	private void listActiveUsers() throws IOException {
+	private void updateActiveUsers() throws IOException {
 		clManager.sendMessage(server, CMD_ACTIVE_USERS);
 		String msg = clManager.receiveMessage(server);
 		
-		System.out.println(msg);
+		activeUsers.clear();
+		if (msg.equals(RESPONSE_FAIL)) return;
+		
+		String[] lines = msg.split("\n");
+		for (String record : lines) {
+			TimestampServerRecord rec = TimestampServerRecord.parse(record); 
+			if (rec == null) continue;
+			activeUsers.add(rec);
+		}
+	}
+	
+	private void listActiveUsers() throws IOException {
+		updateActiveUsers();
+		
+		for (TimestampServerRecord rec : activeUsers) {
+			System.out.println(rec);
+		}
 	}
 
 	private boolean createAuction(String input) throws IOException {
@@ -389,34 +418,42 @@ public class TCPProtocol {
 		return true;
 	}
 	
-	private boolean bid(String input) throws IOException {
+	private void bid(String input) throws IOException {
 		// parse
 		String[] tokens = input.split(" ");
-		if (tokens.length < 3) return true;
+		if (tokens.length < 3) return;
+		
+		int id;
 		double bid;
 		try {
-			Integer.valueOf(tokens[1]);
+			id =  Integer.valueOf(tokens[1]);
 			bid = Double.valueOf(tokens[2]);
 		} catch (NumberFormatException e) {
 			System.err.println("Not a valid value!");
-			return true;
+			return;
 		}
 		
+		if (server == null) signedBid(id, bid);
+		else onlineBid(id, bid);
+	}
+	
+	private void onlineBid(int id, double bid) throws IOException {
 		// send bid to server
-		clManager.sendMessage(server, input);
+		String message = String.format("%s %d %f", CMD_BID, id, bid);
+		clManager.sendMessage(server, message);
 		
 		// receive response
 		String response = clManager.receiveMessage(server);
-		if (response == null) return false;
+		if (response == null) return;
 		if (response.equals(RESPONSE_NO_AUCTION)) {
 			System.out.println("No auction with that id exists");
-			return true;
+			return;
 		}
 		
-		tokens = response.split(" ");
+		String[] tokens = response.split(" ");
 		if (response.startsWith(RESPONSE_FAIL) && tokens.length == 1) {
 			System.out.println("Bidding on auction failed");
-			return true;
+			return;
 		}
 		String amount = tokens[1];
 		String auction = tokens[2];
@@ -430,10 +467,16 @@ public class TCPProtocol {
 			msg = String.format("You unsuccessfully bid with %.2f on '%s'. Current highest bid is %s.", bid, auction, amount);
 		}
 		System.out.println(msg);
-		
-		return true;
 	}
 	
+	private void signedBid(int id, double bid) {
+		// TODO contact neighbors
+		// let them give you a nice timestamp
+		// save 'em for later login
+		
+		Collections.shuffle(activeUsers);
+	}
+
 	private boolean isLoggedIn() {
 		return user != null;
 	}
