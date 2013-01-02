@@ -261,7 +261,7 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		Auction auction = auManager.getAuctionById(id);
-		if (auction == null) {
+		if (auction == null || auction.hasEnded()) {
 			usManager.sendMessage(user, TCPProtocol.RESPONSE_NO_AUCTION);
 			return;
 		}

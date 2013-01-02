@@ -10,7 +10,6 @@ public class Auction {
 	private User highestBidder;
 	private double highestBid;
 	
-	
 	public int getId() {
 		return id;
 	}
@@ -46,6 +45,10 @@ public class Auction {
 	}
 	public void setHighestBid(double highestBid) {
 		this.highestBid = highestBid;
+	}
+	
+	public boolean hasEnded() {
+		return getEndTime().getTimeInMillis() <= System.currentTimeMillis();
 	}
 	
 }
