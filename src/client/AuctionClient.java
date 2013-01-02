@@ -98,6 +98,7 @@ public class AuctionClient {
 		
 		timestampServer = new TimestampServer(udpPort);
 		timestampServer.start();
+		tcpProtocol.setTimestampServer(timestampServer);
 	}
 	
 	private void setupUDP(int udpPort) {

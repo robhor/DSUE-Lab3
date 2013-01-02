@@ -16,6 +16,7 @@ import org.bouncycastle.util.encoders.Base64;
 import server.bean.Client;
 import server.service.ClientManager;
 import util.SecurityUtils;
+import client.timestamp.TimestampServer;
 
 /**
  * Protocol the client uses to communicate with the auction server
@@ -47,8 +48,10 @@ public class TCPProtocol {
 	private int udpPort;
 	
 	private UDPProtocol udpProtocol;
+	private TimestampServer timestampServer;
 	private PublicKey serverKey;
 	private String clientKeyDir;
+
 	
 	public TCPProtocol(ClientManager clManager, PublicKey serverKey, String clientKeyDir) {
 		this.clManager = clManager;
@@ -70,6 +73,10 @@ public class TCPProtocol {
 	}
 	
 
+	public void setTimestampServer(TimestampServer timestampServer) {
+		this.timestampServer = timestampServer;
+	}
+
 	public boolean processInput(String input) {
 		Scanner scanner = new Scanner(input);
 		if (!scanner.hasNext()) return true;
@@ -79,17 +86,7 @@ public class TCPProtocol {
 		if (token.equals(CMD_LOGIN)) {
 			if(!login(input)) return false;
 		} else if (token.equals(CMD_LOGOUT)) {
-			clManager.sendMessage(server, CMD_LOGOUT);
-			
-			if (isLoggedIn()) {
-				System.out.println("Successfully logged out");
-			} else {
-				System.out.println("You have to log in first!");
-			}
-			
-			user = null;
-			clManager.unsecureConnection(server);
-			if (udpProtocol != null) udpProtocol.setUser(null);
+			logout();
 		} else if (token.equals(CMD_EXIT)) {
 			return false;
 		} else if (token.equals(CMD_LIST)) {
@@ -105,6 +102,21 @@ public class TCPProtocol {
 		}
 		
 		return true;
+	}
+
+	private void logout() {
+		clManager.sendMessage(server, CMD_LOGOUT);
+		
+		if (isLoggedIn()) {
+			System.out.println("Successfully logged out");
+		} else {
+			System.out.println("You have to log in first!");
+		}
+		
+		user = null;
+		clManager.unsecureConnection(server);
+		if (udpProtocol != null) udpProtocol.setUser(null);
+		if (timestampServer != null) timestampServer.setSigningKey(null);
 	}
 	
 	private boolean login(String input) {
@@ -156,6 +168,7 @@ public class TCPProtocol {
 		if (!handshakeSuccessful) return false;
 		
 		user = username;
+		if (timestampServer != null) timestampServer.setSigningKey(privateKey);
 		
 		return true;
 	}

@@ -3,12 +3,14 @@ package client.timestamp;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 
 public class TimestampServer extends Thread {
 	private ServerSocket socket;
 	ArrayList<Socket> connections;
+	private PrivateKey key;
 	
 	public TimestampServer(int port) {
 		try {
@@ -29,7 +31,7 @@ public class TimestampServer extends Thread {
 			try {
 				Socket clientSocket = socket.accept();
 				connections.add(clientSocket);
-				executor.execute(new TimestampHandler(clientSocket));
+				executor.execute(new TimestampHandler(this, clientSocket));
 			} catch (IOException e) {
 				break; // socket closed
 			}
@@ -48,5 +50,13 @@ public class TimestampServer extends Thread {
 		} catch (IOException e) {
 			System.err.println("TimestampServer Socket could not be closed");
 		}
+	}
+
+	public void setSigningKey(PrivateKey key) {
+		this.key = key;
+	}
+	
+	public PrivateKey getSigningKey() {
+		return key;
 	}
 }

@@ -9,6 +9,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,6 +26,7 @@ import org.bouncycastle.openssl.PasswordFinder;
 
 public class SecurityUtils {
 	private static final String CIPHER = "RSA/NONE/OAEPWithSHA256AndMGF1Padding";
+	private static final String SIGNATURE_ALGO = "SHA512withRSA";
 	
 	private static final Logger logger = Logger.getLogger(SecurityUtils.class.getSimpleName());
 	
@@ -74,6 +77,24 @@ public class SecurityUtils {
 			logger.log(Level.SEVERE, "Illegal block size: " + e.getMessage());
 		} catch (BadPaddingException e) {
 			logger.log(Level.SEVERE, "Bad padding: " + e.getMessage());
+		}
+		
+		return null;
+	}
+	
+	public static byte[] sign(byte[] message, PrivateKey key) {
+		Signature s;
+		try {
+			s = Signature.getInstance(SIGNATURE_ALGO);
+			s.initSign(key);
+			s.update(message);
+			return s.sign();
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Signing failed: " + e.getMessage());
+		} catch (InvalidKeyException e) {
+			System.err.println("Signing failed: " + e.getMessage());
+		} catch (SignatureException e) {
+			System.err.println("Signing failed: " + e.getMessage());
 		}
 		
 		return null;
