@@ -290,11 +290,22 @@ public class ConnectionHandler implements Runnable {
 		
 		long time = validateSignatures(id, bid, sign1, sign2);
 		
-		// TODO check validity of bid
-		// as in.. was it placed before time was over?
+		// validation unsuccessful
+		if (time < 0) return;
+		
+		boolean bidSuccessful = false;
 		
 		Auction auction = auManager.getAuctionById(id);
-		auManager.bid(user, auction, bid);
+		if (time < auction.getEndTime().getTimeInMillis())
+			bidSuccessful = auManager.bid(user, auction, bid);
+		
+		if (bidSuccessful) {
+			String s = String.format("Signed Bid: Auction \"%s\" now at %.2f (%s)",
+									auction.getName(),
+									auction.getHighestBid(),
+									auction.getHighestBidder().getName());
+			System.out.println(s);
+		}
 	}
 	
 	private long validateSignatures(int id, double bid, String signature1, String signature2) {

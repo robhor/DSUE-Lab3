@@ -50,7 +50,7 @@ public class TimestampHandler implements Runnable {
 		long time = System.currentTimeMillis();
 		
 		String answer = String.format("%s %s %s %d", TCPProtocol.RESPONSE_TIMESTAMP, token[1], token[2], time);
-		System.out.println("Signing: " + answer);
+		
 		answer += " " + sign(answer);
 		
 		channel.send(answer.getBytes());

@@ -10,11 +10,11 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -62,7 +62,7 @@ public class TCPProtocol {
 	private int serverPort;
 	private Client server;
 	private TimerTask reconnectTask;
-	private ConcurrentHashMap<String, String> signedBids; /** Key: Username, Value: 1 signedBid command per line */
+	private HashMap<String, String> signedBids; /** Key: Username, Value: 1 signedBid command per line */
 	
 	private UDPProtocol udpProtocol;
 	private TimestampServer timestampServer;
@@ -78,7 +78,7 @@ public class TCPProtocol {
 		this.user = null;
 		
 		activeUsers = new ArrayList<TimestampServerRecord>();
-		signedBids = new ConcurrentHashMap<String, String>();
+		signedBids = new HashMap<String, String>();
 	}
 	
 	public void setUdpPort(Integer udpPort) {
@@ -246,26 +246,6 @@ public class TCPProtocol {
 		}
 	}
 	
-	private void sendSignedBids() {
-		String saved = signedBids.get(user);
-		if (saved == null) return;
-		
-		String failed = "";
-		
-		String[] bids = saved.split("\n");
-		for (String bid : bids) {
-			clManager.sendMessage(server, bid);
-			try {
-				clManager.receiveMessage(server);
-			} catch (IOException e) {
-				failed += bid + "\n";
-			}
-		}
-		
-		if (failed.equals("")) failed = null;
-		signedBids.put(user, failed);
-	}
-	
 	/**
 	 * Logs in the user with the given username
 	 * @param username
@@ -298,6 +278,8 @@ public class TCPProtocol {
 				sendSignedBids();
 			}
 		}
+		
+		updateActiveUsers();
 		
 		return handshakeSuccessful;
 	}
@@ -542,13 +524,32 @@ public class TCPProtocol {
 		if (sign2 == null) {
 			System.out.println("Bid failed: Not enough users available to sign");
 		} else {
-			String signedBid = CMD_SIGNED_BID + " " + id + " " + bid + " " + sign1 + " " + sign2; 
-			String bids = signedBids.get(user);
-			if (bids == null) bids = "";
+			String signedBid = CMD_SIGNED_BID + " " + id + " " + bid + " " + sign1 + " " + sign2;
+			synchronized (signedBids) {
+				String bids = signedBids.get(user);
+				if (bids == null) bids = "";
+				
+				bids += signedBid + "\n";
+				signedBids.put(user, bids);
+			}
+			System.out.println("Bid signed");	
+		}
+	}
+
+	private void sendSignedBids() {
+		synchronized (signedBids) {
+			String saved = signedBids.get(user);
+			if (saved == null) return;
 			
-			bids += signedBid + "\n";
-			signedBids.put(user, bids);
-			System.out.println("Bid signed");
+			String failed = "";
+			
+			String[] bids = saved.split("\n");
+			for (String bid : bids) {
+				clManager.sendMessage(server, bid);
+			}
+			
+			if (failed.equals("")) failed = null;
+			signedBids.put(user, failed);
 		}
 	}
 
