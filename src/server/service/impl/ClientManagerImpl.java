@@ -104,14 +104,10 @@ public class ClientManagerImpl implements ClientManager {
 	}
 
 	@Override
-	public String receiveMessage(Client client) {
-		try {
-			String line = new String(client.getChannel().read());
-			return line;
-		} catch (IOException e) {
-			logger.log(Level.FINE, "Socket closed\n" + e);
-			return null;
-		}
+	public String receiveMessage(Client client) throws IOException {
+		byte[] line = client.getChannel().read();
+		if (line == null) throw new IOException("Socket closed");
+		return new String(line);
 	}
 
 	@Override

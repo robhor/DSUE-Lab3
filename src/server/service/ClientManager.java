@@ -1,5 +1,6 @@
 package server.service;
 
+import java.io.IOException;
 import java.net.Socket;
 
 import server.bean.Client;
@@ -36,8 +37,9 @@ public interface ClientManager {
 	 * Listens for incoming messages
 	 * @param client
 	 * @return null if socket was closed while listening or received EOF
+	 * @throws IOException 
 	 */
-	String receiveMessage(Client client);
+	String receiveMessage(Client client) throws IOException;
 	
 	/**
 	 * Upgrades this clients channel to a secure channel

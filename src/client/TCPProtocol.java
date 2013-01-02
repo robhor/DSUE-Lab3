@@ -4,9 +4,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,7 +26,8 @@ import client.timestamp.TimestampServer;
  * Protocol the client uses to communicate with the auction server
  */
 public class TCPProtocol {
-	public static final int    KEYSIZE    = 256; /** Keysize for AES-Cipher */
+	public static final int    KEYSIZE             = 256; /** Keysize for AES-Cipher */
+	public static final int    RECONNECT_INTERVAL  = 10; /** seconds */
 	
     public static final String CMD_LOGIN        = "!login";
 	public static final String CMD_LOGOUT       = "!logout";
@@ -44,8 +49,12 @@ public class TCPProtocol {
 	
 	private ClientManager clManager;
 	private String user;
-	private Client server;
 	private int udpPort;
+	
+	private String serverHost;
+	private int serverPort;
+	private Client server;
+	private TimerTask reconnectTask;
 	
 	private UDPProtocol udpProtocol;
 	private TimestampServer timestampServer;
@@ -60,14 +69,67 @@ public class TCPProtocol {
 		this.user = null;
 	}
 	
-	public void setServer(Client server) {
-		this.server = server;
-	}
-	
 	public void setUdpPort(Integer udpPort) {
 		this.udpPort = udpPort;
 	}
 	
+	public void setServer(String host, int port) throws UnknownHostException, IOException {
+		this.serverHost = host;
+		this.serverPort = port;
+		
+		Socket socket;
+		socket = new Socket(host, port);
+		
+		server = clManager.newClient(socket);
+	}
+
+	/**
+	 * Tries to reconnect to a previously connected server
+	 * @return true, if successfully reconnected
+	 */
+	private boolean serverReconnect() {
+		if (server != null) return true;
+		try {
+			setServer(serverHost, serverPort);
+		} catch (UnknownHostException e) {
+			logger.log(Level.WARNING, "Unknown Host");
+			return false;
+		} catch (IOException e) {
+			logger.log(Level.INFO, "Could not connect to server");
+			return false;
+		}
+		
+		// TODO auto-relogin
+		
+		return true;
+	}
+	
+	private void serverScheduleReconnect() {
+		final String retryMessage = "Server unreachable. Will try to reconnect in " + RECONNECT_INTERVAL + " seconds";
+		System.out.println(retryMessage);
+		
+		int period = RECONNECT_INTERVAL * 1000;
+		if (reconnectTask == null) {
+			reconnectTask = new TimerTask() {
+				public void run() {
+					if (serverReconnect()) {
+						System.out.println("Successfully reconnected!");
+						reconnectTask = null;
+						cancel();
+					} else {
+						System.out.println(retryMessage);
+					}
+				}
+			};
+			new Timer().scheduleAtFixedRate(reconnectTask, period, period);
+		}
+	}
+
+	private void serverDisconnect() {
+		server = null;
+		serverScheduleReconnect();
+	}
+
 	public void setUdpProtocol(UDPProtocol udpProtocol) {
 		this.udpProtocol = udpProtocol;
 	}
@@ -83,46 +145,62 @@ public class TCPProtocol {
 		
 		String token = scanner.next();
 		
-		if (token.equals(CMD_LOGIN)) {
-			if(!login(input)) return false;
-		} else if (token.equals(CMD_LOGOUT)) {
-			logout();
-		} else if (token.equals(CMD_EXIT)) {
-			return false;
-		} else if (token.equals(CMD_LIST)) {
-			if (!listAuctions()) return false;
-		} else if (token.equals(CMD_CREATE)) {
-			if (!createAuction(input)) return false;
-		} else if (token.equals(CMD_BID)) {
-			if (!bid(input)) return false;
-		} else if (token.equals(CMD_ACTIVE_USERS)) {
-			if (!listActiveUsers()) return false;
-		} else {
-			System.out.println("unknown command");
+		if (token.equals(CMD_EXIT)) return false;
+		
+		if (server == null) {
+			serverDisconnect();
+			return true;
+		}
+		
+		try {
+			if (token.equals(CMD_LOGIN)) {
+				login(input);
+			} else if (token.equals(CMD_LOGOUT)) {
+				logout();
+			} else if (token.equals(CMD_LIST)) {
+				listAuctions();
+			} else if (token.equals(CMD_CREATE)) {
+				createAuction(input);
+			} else if (token.equals(CMD_BID)) {
+				if (!bid(input)) return false;
+			} else if (token.equals(CMD_ACTIVE_USERS)) {
+				listActiveUsers();
+			} else {
+				System.out.println("unknown command");
+			}
+		} catch (IOException e) {
+			serverDisconnect();
 		}
 		
 		return true;
 	}
-
-	private void logout() {
-		clManager.sendMessage(server, CMD_LOGOUT);
-		
+	
+	private void logout() throws IOException {
 		if (isLoggedIn()) {
 			System.out.println("Successfully logged out");
 		} else {
 			System.out.println("You have to log in first!");
+			return;
+
 		}
 		
-		user = null;
-		clManager.unsecureConnection(server);
-		if (udpProtocol != null) udpProtocol.setUser(null);
-		if (timestampServer != null) timestampServer.setSigningKey(null);
+		clManager.sendMessage(server, CMD_LOGOUT);
+		
+		try {
+			clManager.receiveMessage(server);
+		} finally {
+			user = null;
+			clManager.unsecureConnection(server);
+			if (udpProtocol != null) udpProtocol.setUser(null);
+			if (timestampServer != null) timestampServer.setSigningKey(null);
+		}
 	}
 	
-	private boolean login(String input) {
+	private void login(String input) {
 		// parse input
 		String[] tokens = input.split(" ");
-		if (tokens.length < 2) return true;
+		if (tokens.length < 2) return;
+		
 		String username = tokens[1];
 		if (udpProtocol != null) udpProtocol.setUser(username);
 		
@@ -132,7 +210,6 @@ public class TCPProtocol {
 			if (udpProtocol != null) udpProtocol.setUser(user);
 			System.out.println("Login unsuccessful");
 		}
-		return true;
 	}
 	
 	/**
@@ -227,30 +304,25 @@ public class TCPProtocol {
 		return true;
 	}
 
-	private boolean listAuctions() {
+	private void listAuctions() throws IOException {
 		clManager.sendMessage(server, CMD_LIST);
 		String msg = clManager.receiveMessage(server);
-		if (msg == null) return false;
 		
 		int auctions = Integer.valueOf(msg);
 		for (int i = 0; i < auctions; i++) {
 			msg = clManager.receiveMessage(server);
 			System.out.println(msg);
 		}
-		
-		return true;
 	}
 	
-	private boolean listActiveUsers() {
+	private void listActiveUsers() throws IOException {
 		clManager.sendMessage(server, CMD_ACTIVE_USERS);
 		String msg = clManager.receiveMessage(server);
 		
 		System.out.println(msg);
-		
-		return true;
 	}
 
-	private boolean createAuction(String input) {
+	private boolean createAuction(String input) throws IOException {
 		// !create <duration> <description>
 		if (!isLoggedIn()) {
 			System.err.println("You need to be logged in to do that");
@@ -305,7 +377,7 @@ public class TCPProtocol {
 		return true;
 	}
 	
-	private boolean bid(String input) {
+	private boolean bid(String input) throws IOException {
 		// parse
 		String[] tokens = input.split(" ");
 		if (tokens.length < 3) return true;
@@ -357,5 +429,4 @@ public class TCPProtocol {
 	public String getUsername() {
 		return user;
 	}
-
 }

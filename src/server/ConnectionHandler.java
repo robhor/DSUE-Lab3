@@ -168,6 +168,7 @@ public class ConnectionHandler implements Runnable {
 	private void logout(String[] tokens) {
 		usManager.logout(user);
 		clManager.unsecureConnection(client);
+		clManager.sendMessage(client, TCPProtocol.RESPONSE_SUCCESS);
 		
 		user = null;
 	}
