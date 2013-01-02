@@ -491,7 +491,7 @@ public class TCPProtocol {
 		while (it.hasNext()) {
 			TimestampServerRecord rec = it.next();
 			
-			if (rec.getUser() == user) {
+			if (rec.getUser().equals(user)) {
 				it.remove();
 				continue;
 			}

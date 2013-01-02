@@ -6,6 +6,7 @@ import java.net.Socket;
 import org.bouncycastle.util.encoders.Base64;
 
 import util.SecurityUtils;
+import channels.Base64Channel;
 import channels.Channel;
 import channels.TCPChannel;
 import client.TCPProtocol;
@@ -18,6 +19,7 @@ public class TimestampHandler implements Runnable {
 		try {
 			this.server = server;
 			this.channel = new TCPChannel(client);
+			this.channel = new Base64Channel(channel);
 		} catch (IOException e) {
 			System.err.println("Opening channel failed");
 		}
