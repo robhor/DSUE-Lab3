@@ -100,6 +100,24 @@ public class SecurityUtils {
 		return null;
 	}
 	
+	public static boolean verify(byte[] message, byte[] signature, PublicKey key) {
+		Signature s;
+		try {
+			s = Signature.getInstance(SIGNATURE_ALGO);
+			s.initVerify(key);
+			s.update(message);
+			return s.verify(signature);
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Verifying signature failed: " + e.getMessage());
+		} catch (InvalidKeyException e) {
+			System.err.println("Verifying signature failed: " + e.getMessage());
+		} catch (SignatureException e) {
+			System.err.println("Verifying signature failed: " + e.getMessage());
+		}
+		
+		return false;
+	}
+	
 	
 	public static PrivateKey getPrivateKey(String path, final String password) throws IOException {
 		PEMReader pemreader = new PEMReader(new FileReader(path), new PasswordFinder() {

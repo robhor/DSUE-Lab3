@@ -74,6 +74,8 @@ public class ConnectionHandler implements Runnable {
 			listAuctions(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_BID)) {
 			bid(tokens);
+		} else if (cmd.equals(TCPProtocol.CMD_SIGNED_BID)) {
+			signedBid(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_UDP)) {
 			setUdp(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_ACTIVE_USERS)) {
@@ -139,7 +141,7 @@ public class ConnectionHandler implements Runnable {
 		// encrypt using client's public key
 		PublicKey clientKey = null;
 		try {
-			clientKey = SecurityUtils.getPublicKey(clientKeyDir + name + ".pub.pem");
+			clientKey = getPublicKey(name);
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Public key of user " + name + " could not be read.");
 		}
@@ -273,6 +275,70 @@ public class ConnectionHandler implements Runnable {
 		usManager.sendMessage(user, msg);
 	}
 
+	private void signedBid(String[] tokens) {
+		int id;
+		double bid;
+		String sign1, sign2;
+		try {
+			id = Integer.valueOf(tokens[1]);
+			bid = Double.valueOf(tokens[2]);
+			sign1 = tokens[3];
+			sign2 = tokens[4];
+		} catch (NumberFormatException e) {
+			return;
+		}
+		
+		long time = validateSignatures(id, bid, sign1, sign2);
+		
+		// TODO check validity of bid
+		// as in.. was it placed before time was over?
+		
+		Auction auction = auManager.getAuctionById(id);
+		auManager.bid(user, auction, bid);
+	}
+	
+	private long validateSignatures(int id, double bid, String signature1, String signature2) {
+		long time1 = validateSignature(id, bid, signature1);
+		if (time1 < 0) return -1;
+		
+		long time2 = validateSignature(id, bid, signature2);
+		if (time2 < 0) return -2;
+		
+		return (time1 + time2) / 2;
+	}
+	
+	private long validateSignature(int id, double bid, String signature) {
+		String[] tokens = signature.split(":");
+		if (tokens.length != 3) return -1;
+		
+		long time;
+		String user;
+		byte[] sign;
+		
+		try {
+			user = tokens[0];
+			time = Long.parseLong(tokens[1]);
+			sign = Base64.decode(tokens[2]);
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+		
+		// reconstruct original !timestamp command
+		String timestamp = String.format("%s %d %f %d", TCPProtocol.RESPONSE_TIMESTAMP, id, bid, time);
+		
+		PublicKey key;
+		try {
+			key = getPublicKey(user);
+		} catch (IOException e) {
+			return -1;
+		}
+		
+		if (!SecurityUtils.verify(timestamp.getBytes(), sign, key))
+			return -1;
+		
+		return time;
+	}
+
 	private void setUdp(String[] tokens) {
 		if (user == null) return;
 		if (tokens.length < 2) return;
@@ -305,6 +371,7 @@ public class ConnectionHandler implements Runnable {
 		clManager.sendMessage(client, users);
 	}
 	
-	
-	
+	private PublicKey getPublicKey(String username) throws IOException {
+		return SecurityUtils.getPublicKey(clientKeyDir + username + ".pub.pem");	
+	}
 }

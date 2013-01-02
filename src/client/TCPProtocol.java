@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,6 +39,7 @@ public class TCPProtocol {
 	public static final String CMD_LIST         = "!list";
 	public static final String CMD_CREATE       = "!create";
 	public static final String CMD_BID          = "!bid";
+	public static final String CMD_SIGNED_BID   = "!signedBid";
 	public static final String CMD_EXIT         = "!end";
 	public static final String CMD_UDP          = "!udp";
 	public static final String CMD_ACTIVE_USERS = "!getClientList";
@@ -60,6 +62,7 @@ public class TCPProtocol {
 	private int serverPort;
 	private Client server;
 	private TimerTask reconnectTask;
+	private ConcurrentHashMap<String, String> signedBids; /** Key: Username, Value: 1 signedBid command per line */
 	
 	private UDPProtocol udpProtocol;
 	private TimestampServer timestampServer;
@@ -75,6 +78,7 @@ public class TCPProtocol {
 		this.user = null;
 		
 		activeUsers = new ArrayList<TimestampServerRecord>();
+		signedBids = new ConcurrentHashMap<String, String>();
 	}
 	
 	public void setUdpPort(Integer udpPort) {
@@ -114,11 +118,10 @@ public class TCPProtocol {
 		
 		try {
 			if (user != null && userKey != null) {
-				if (!handshake(user, userKey)) {
+				if (!handshake(user, userKey))
 					logout();
-				} else {
-					// TODO send saved up signedBids
-				}
+				else
+					sendSignedBids();
 			}
 		} catch (IOException e) {
 			serverDisconnect();
@@ -243,6 +246,26 @@ public class TCPProtocol {
 		}
 	}
 	
+	private void sendSignedBids() {
+		String saved = signedBids.get(user);
+		if (saved == null) return;
+		
+		String failed = "";
+		
+		String[] bids = saved.split("\n");
+		for (String bid : bids) {
+			clManager.sendMessage(server, bid);
+			try {
+				clManager.receiveMessage(server);
+			} catch (IOException e) {
+				failed += bid + "\n";
+			}
+		}
+		
+		if (failed.equals("")) failed = null;
+		signedBids.put(user, failed);
+	}
+	
 	/**
 	 * Logs in the user with the given username
 	 * @param username
@@ -272,6 +295,7 @@ public class TCPProtocol {
 			if (handshakeSuccessful) {
 				if (timestampServer != null) timestampServer.setSigningKey(userKey);
 				user = username;
+				sendSignedBids();
 			}
 		}
 		
@@ -516,11 +540,15 @@ public class TCPProtocol {
 		}
 		
 		if (sign2 == null) {
-			// TODO fail because not enough to sign
-			System.out.println("Failed: Not enough users online to sign");
+			System.out.println("Bid failed: Not enough users available to sign");
 		} else {
-			// TODO save signedBid
-			System.out.println("!signedBid " + id + " " + bid + " " + sign1 + " " + sign2);
+			String signedBid = CMD_SIGNED_BID + " " + id + " " + bid + " " + sign1 + " " + sign2; 
+			String bids = signedBids.get(user);
+			if (bids == null) bids = "";
+			
+			bids += signedBid + "\n";
+			signedBids.put(user, bids);
+			System.out.println("Bid signed");
 		}
 	}
 
