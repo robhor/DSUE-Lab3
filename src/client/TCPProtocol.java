@@ -107,8 +107,10 @@ public class TCPProtocol {
 			return false;
 		}
 		
-		reconnectTask.cancel();
-		reconnectTask = null;
+		if (reconnectTask != null) {
+			reconnectTask.cancel();
+			reconnectTask = null;
+		}
 		
 		try {
 			if (user != null && userKey != null) {
@@ -287,7 +289,7 @@ public class TCPProtocol {
 		/* **************************************************************************************
 		 *              Step 1: send !login <username> <tcpPort> <clientChallenge>
 		 * **************************************************************************************/
-		int tcpPort = 0; // TODO tcpPort is required for stage 4
+		int tcpPort = timestampServer.getPort();
 		
 		clientChallenge = SecurityUtils.generateNumber(32);
 		String clientChallenge64 = new String(Base64.encode(clientChallenge));

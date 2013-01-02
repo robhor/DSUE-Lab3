@@ -59,4 +59,8 @@ public class TimestampServer extends Thread {
 	public PrivateKey getSigningKey() {
 		return key;
 	}
+	
+	public int getPort() {
+		return socket.getLocalPort();
+	}
 }

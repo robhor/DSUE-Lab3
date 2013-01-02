@@ -79,10 +79,8 @@ public class AuctionClient {
 			tcpProtocol.setServer(host, tcpPort);
 		} catch (UnknownHostException e) {
 			System.err.println("Unknown host");
-			return;
 		} catch (IOException e) {
 			System.err.println("Could not connect");
-			return;
 		}
 		
 		// open UDP socket and listen in a separate thread
