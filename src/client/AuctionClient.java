@@ -13,15 +13,17 @@ import server.bean.Client;
 import server.service.ClientManager;
 import server.service.impl.ClientManagerImpl;
 import util.SecurityUtils;
+import client.timestamp.TimestampServer;
 
 public class AuctionClient {
-	private static final boolean UDP_ENABLED = false; // disabled in lab2
+	private static final boolean UDP_ENABLED = false; // disabled in lab 2 & 3 
 	
 	private static final String USAGE = "USAGE: host hostPort udpPort serverPublicKey clientKeyDir";
 	
 	private ClientManager clManager;
 	private Client server;
 	
+	private TimestampServer timestampServer;
 	private Socket socket;
 	private DatagramSocket udpSocket;
 	private TCPProtocol tcpProtocol;
@@ -59,8 +61,6 @@ public class AuctionClient {
 			return;
 		}
 		
-		if (!UDP_ENABLED) udpPort = 0;
-		
 		AuctionClient client = new AuctionClient(host, tcpPort, udpPort, serverKey, clientKeyDirPath);
 
 		System.out.println("Client ready.");
@@ -91,10 +91,13 @@ public class AuctionClient {
 		
 		tcpProtocol = new TCPProtocol(clManager, serverKey, clientKeyDir);
 		tcpProtocol.setServer(server);
-		tcpProtocol.setUdpPort(udpPort);
+		tcpProtocol.setUdpPort(UDP_ENABLED ? udpPort : 0);
 		
 		// open UDP socket and listen in a separate thread
 		if (UDP_ENABLED) setupUDP(udpPort);
+		
+		timestampServer = new TimestampServer(udpPort);
+		timestampServer.start();
 	}
 	
 	private void setupUDP(int udpPort) {
@@ -144,5 +147,6 @@ public class AuctionClient {
 	public void shutdown() {
 		clManager.disconnect(server);
 		if (udpSocket != null) udpSocket.close();
+		timestampServer.close();
 	}
 }

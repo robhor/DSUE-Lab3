@@ -32,6 +32,9 @@ public class TCPProtocol {
 	public static final String CMD_UDP          = "!udp";
 	public static final String CMD_ACTIVE_USERS = "!getClientList";
 	
+	public static final String CMD_GET_TIMESTAMP  = "!getTimestamp";
+	public static final String RESPONSE_TIMESTAMP = "!timestamp";
+	
 	public static final String RESPONSE_FAIL       = "!fail";
 	public static final String RESPONSE_SUCCESS    = "!ok";
 	public static final String RESPONSE_NO_AUCTION = "!no-auction";
