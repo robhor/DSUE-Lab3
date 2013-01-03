@@ -47,8 +47,11 @@ public class TimestampServerRecord {
 		clm.sendMessage(client, msg);
 		
 		msg = clm.receiveMessage(client);
+		clm.disconnect(client);
+		
 		String[] tokens = msg.split(" ");
 		if (tokens.length != 5) return null;
+		
 		
 		// msg ~= !timestamp <id> <amount> <time> <signature>
 		String stamp = user + ":" + tokens[3] + ":" + tokens[4];

@@ -61,6 +61,7 @@ public class TCPProtocol {
 	private String serverHost;
 	private int serverPort;
 	private Client server;
+	private Timer reconnectTimer;
 	private TimerTask reconnectTask;
 	private HashMap<String, String> signedBids; /** Key: Username, Value: 1 signedBid command per line */
 	
@@ -79,6 +80,8 @@ public class TCPProtocol {
 		
 		activeUsers = new ArrayList<TimestampServerRecord>();
 		signedBids = new HashMap<String, String>();
+		
+		reconnectTimer = new Timer();
 	}
 	
 	public void setUdpPort(Integer udpPort) {
@@ -148,7 +151,9 @@ public class TCPProtocol {
 					}
 				}
 			};
-			new Timer().scheduleAtFixedRate(reconnectTask, period, period);
+			
+			
+			reconnectTimer.scheduleAtFixedRate(reconnectTask, period, period);
 		}
 	}
 
@@ -172,7 +177,10 @@ public class TCPProtocol {
 		
 		String token = scanner.next();
 		
-		if (token.equals(CMD_EXIT)) return false;
+		if (token.equals(CMD_EXIT)) {
+			shutdown();
+			return false;
+		}
 		
 		if (server == null && !serverReconnect()) {
 			serverDisconnect();
@@ -551,6 +559,13 @@ public class TCPProtocol {
 			if (failed.equals("")) failed = null;
 			signedBids.put(user, failed);
 		}
+	}
+	
+	private void shutdown() {
+		if (reconnectTask != null) reconnectTask.cancel();
+		reconnectTask = null;
+		
+		reconnectTimer.cancel();
 	}
 
 	private boolean isLoggedIn() {

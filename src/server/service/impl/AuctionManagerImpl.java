@@ -143,7 +143,6 @@ public class AuctionManagerImpl implements AuctionManager {
 		if (bidder == null) throw new IllegalArgumentException("Bidder can't be null!");
 		if (auction == null) throw new IllegalArgumentException("Auction can't be null!");
 		if (amount <= 0) throw new IllegalArgumentException("Must bid at least 0.01 units of currency!");
-		if (auction.hasEnded()) throw new IllegalArgumentException("Auction has already ended!");
 		
 		boolean overbid = false;
 		

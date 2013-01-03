@@ -290,21 +290,29 @@ public class ConnectionHandler implements Runnable {
 		
 		long time = validateSignatures(id, bid, sign1, sign2);
 		
-		// validation unsuccessful
-		if (time < 0) return;
+		boolean bidSuccessful = true;
 		
-		boolean bidSuccessful = false;
+		// validation unsuccessful
+		if (time < 0) bidSuccessful = false;
+		
 		
 		Auction auction = auManager.getAuctionById(id);
-		if (time < auction.getEndTime().getTimeInMillis())
+		if (bidSuccessful && auction != null && time < auction.getEndTime().getTimeInMillis())
 			bidSuccessful = auManager.bid(user, auction, bid);
+		else
+			bidSuccessful = false;
 		
 		if (bidSuccessful) {
-			String s = String.format("Signed Bid: Auction \"%s\" now at %.2f (%s)",
+			String s = String.format("Signed bid: Auction \"%s\" now at %.2f (%s)",
 									auction.getName(),
 									auction.getHighestBid(),
 									auction.getHighestBidder().getName());
-			System.out.println(s);
+			logger.log(Level.INFO, s);
+		} else {
+			String auctionName = (auction == null) ? "(Not existing)" : auction.getName();
+			String s = String.format("Rejected signed bid: For auction \"%s\", %.2f (%s)",
+					auctionName, bid, user.getName());
+			logger.log(Level.INFO, s);
 		}
 	}
 	

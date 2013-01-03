@@ -31,9 +31,8 @@ public class TimestampHandler implements Runnable {
 		
 		try {
 			byte[] msg;
-			while((msg = channel.read()) != null) {
-				handleMessage(new String(msg));
-			}
+			msg = channel.read();
+			if (msg != null) handleMessage(new String(msg));
 		} catch (IOException e) {
 			// closed
 		}

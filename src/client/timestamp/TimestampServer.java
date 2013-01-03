@@ -38,17 +38,19 @@ public class TimestampServer extends Thread {
 		}
 		
 		executor.shutdownNow();
+		close();
 	}
 	
 	public void close() {
 		try {
 			socket.close();
-			
-			for (Socket s : connections) {
-				s.close();
-			}
 		} catch (IOException e) {
 			System.err.println("TimestampServer Socket could not be closed");
+		}
+		
+		for (Socket s : connections) {
+			try { s.close(); }
+			catch (IOException e) {}
 		}
 	}
 
