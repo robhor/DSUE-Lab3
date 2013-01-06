@@ -1,5 +1,6 @@
 package server;
 import java.io.IOException;
+import java.security.Key;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -158,7 +159,7 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		// handshake successful
-		if (user != null) usManager.logout(user);
+		if (isLoggedIn()) usManager.logout(user);
 		user = usManager.login(name, client);
 	}
 	
@@ -173,7 +174,7 @@ public class ConnectionHandler implements Runnable {
 		// !create <duration> <description>
 		
 		// must be logged in
-		if (user == null) {
+		if (!isLoggedIn()) {
 			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
 			return;
 		}
@@ -212,11 +213,31 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	private void listAuctions(String[] tokens) {
+		Key hmacKey = null;
+		
+		if (isLoggedIn()) {
+			String userName = user.getName();
+			
+			try {
+				String hmacKeyPath = clientKeyDir + userName + ".key";
+				hmacKey = SecurityUtils.getClientKey(hmacKeyPath);
+			} catch (IOException e) {
+				logger.log(Level.INFO, "Shared key of user " + userName + " could not be read.");
+				clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
+				return;
+			}
+		}
+		
 		Collection<Auction> list = auManager.getAuctions();
 		SimpleDateFormat sdf = new SimpleDateFormat();
+
+		StringBuilder messageBuilder = new StringBuilder(); // whole list output without either count or HMAC
 		
-	
-		clManager.sendMessage(client, String.valueOf(list.size()));
+		String header = String.valueOf(list.size());
+		clManager.sendMessage(client, TCPProtocol.RESPONSE_SUCCESS);	
+		clManager.sendMessage(client, header);
+
+		messageBuilder.append(String.format("%s%n%s%n", TCPProtocol.RESPONSE_SUCCESS, header));
 		
 		for (Auction a : list) {
 			User bidder = a.getHighestBidder();
@@ -230,14 +251,25 @@ public class ConnectionHandler implements Runnable {
 					bidderName);
 			
 			clManager.sendMessage(client, line);
+			messageBuilder.append(String.format("%s%n", line));
 		}
+		
+		if (isLoggedIn()) {
+			sendHmac(messageBuilder.toString(), hmacKey);
+		}
+	}
+	
+	private void sendHmac(String message, Key key) {
+		byte[] hmac = SecurityUtils.hmacSHA256(message.getBytes(), key);
+		String hmac64 = new String(Base64.encode(hmac));
+		clManager.sendMessage(client, hmac64);
 	}
 	
 	private void bid(String[] tokens) {
 		// !bid #id #amount
 		
 		// need to be logged in
-		if (user == null) {
+		if (!isLoggedIn()) {
 			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
 			return;
 		}
@@ -270,7 +302,7 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	private void setUdp(String[] tokens) {
-		if (user == null) return;
+		if (!isLoggedIn()) return;
 		if (tokens.length < 2) return;
 		
 		Integer udpPort;
@@ -284,6 +316,7 @@ public class ConnectionHandler implements Runnable {
 		client.setUdpPort(udpPort);
 	}
 	
-	
-	
+	private boolean isLoggedIn() {
+		return user != null;
+	}
 }
