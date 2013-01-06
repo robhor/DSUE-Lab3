@@ -3,26 +3,24 @@ package client;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
-import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.security.PublicKey;
 import java.util.Scanner;
 
-import server.bean.Client;
 import server.service.ClientManager;
 import server.service.impl.ClientManagerImpl;
 import util.SecurityUtils;
+import client.timestamp.TimestampServer;
 
 public class AuctionClient {
-	private static final boolean UDP_ENABLED = false; // disabled in lab2
+	private static final boolean UDP_ENABLED = false; // disabled in lab 2 & 3 
 	
 	private static final String USAGE = "USAGE: host hostPort udpPort serverPublicKey clientKeyDir";
 	
 	private ClientManager clManager;
-	private Client server;
 	
-	private Socket socket;
+	private TimestampServer timestampServer;
 	private DatagramSocket udpSocket;
 	private TCPProtocol tcpProtocol;
 
@@ -59,8 +57,6 @@ public class AuctionClient {
 			return;
 		}
 		
-		if (!UDP_ENABLED) udpPort = 0;
-		
 		AuctionClient client = new AuctionClient(host, tcpPort, udpPort, serverKey, clientKeyDirPath);
 
 		System.out.println("Client ready.");
@@ -74,27 +70,25 @@ public class AuctionClient {
 	
 	public AuctionClient(String host, int tcpPort, int udpPort, PublicKey serverKey, String clientKeyDir) {
 		// establish connection
-		socket = null;
 		clManager = new ClientManagerImpl();
 		
+		tcpProtocol = new TCPProtocol(clManager, serverKey, clientKeyDir);
+		tcpProtocol.setUdpPort(UDP_ENABLED ? udpPort : 0);
+		
 		try {
-			socket = new Socket(host, tcpPort);
+			tcpProtocol.setServer(host, tcpPort);
 		} catch (UnknownHostException e) {
 			System.err.println("Unknown host");
-			return;
 		} catch (IOException e) {
 			System.err.println("Could not connect");
-			return;
 		}
-		
-		server = clManager.newClient(socket);
-		
-		tcpProtocol = new TCPProtocol(clManager, serverKey, clientKeyDir);
-		tcpProtocol.setServer(server);
-		tcpProtocol.setUdpPort(udpPort);
 		
 		// open UDP socket and listen in a separate thread
 		if (UDP_ENABLED) setupUDP(udpPort);
+		
+		timestampServer = new TimestampServer(udpPort);
+		timestampServer.start();
+		tcpProtocol.setTimestampServer(timestampServer);
 	}
 	
 	private void setupUDP(int udpPort) {
@@ -142,7 +136,8 @@ public class AuctionClient {
 	}
 	
 	public void shutdown() {
-		clManager.disconnect(server);
+		clManager.disconnectAll();
 		if (udpSocket != null) udpSocket.close();
+		timestampServer.close();
 	}
 }

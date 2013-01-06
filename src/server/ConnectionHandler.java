@@ -74,8 +74,12 @@ public class ConnectionHandler implements Runnable {
 			listAuctions(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_BID)) {
 			bid(tokens);
+		} else if (cmd.equals(TCPProtocol.CMD_SIGNED_BID)) {
+			signedBid(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_UDP)) {
 			setUdp(tokens);
+		} else if (cmd.equals(TCPProtocol.CMD_ACTIVE_USERS)) {
+			listActiveUsers();
 		} else {
 			// could be encrypted !login message
 			msg = new String(SecurityUtils.decryptRSA(message, privateKey));
@@ -100,7 +104,7 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		String name = tokens[1];
-		Integer tcpPort = Integer.parseInt(tokens[2]); // TODO tcpPort is required for stage 4
+		Integer tcpPort = Integer.parseInt(tokens[2]); 
 		String clientChallenge = tokens[3];
 		
 		// check if logged in already beforehand
@@ -137,7 +141,7 @@ public class ConnectionHandler implements Runnable {
 		// encrypt using client's public key
 		PublicKey clientKey = null;
 		try {
-			clientKey = SecurityUtils.getPublicKey(clientKeyDir + name + ".pub.pem");
+			clientKey = getPublicKey(name);
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Public key of user " + name + " could not be read.");
 		}
@@ -160,11 +164,13 @@ public class ConnectionHandler implements Runnable {
 		// handshake successful
 		if (user != null) usManager.logout(user);
 		user = usManager.login(name, client);
+		user.setTcpPort(tcpPort);
 	}
 	
 	private void logout(String[] tokens) {
 		usManager.logout(user);
 		clManager.unsecureConnection(client);
+		clManager.sendMessage(client, TCPProtocol.RESPONSE_SUCCESS);
 		
 		user = null;
 	}
@@ -258,7 +264,7 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		Auction auction = auManager.getAuctionById(id);
-		if (auction == null) {
+		if (auction == null || auction.hasEnded()) {
 			usManager.sendMessage(user, TCPProtocol.RESPONSE_NO_AUCTION);
 			return;
 		}
@@ -267,6 +273,89 @@ public class ConnectionHandler implements Runnable {
 		String msg = (success) ? TCPProtocol.RESPONSE_SUCCESS : TCPProtocol.RESPONSE_FAIL;
 		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getName());
 		usManager.sendMessage(user, msg);
+	}
+
+	private void signedBid(String[] tokens) {
+		int id;
+		double bid;
+		String sign1, sign2;
+		try {
+			id = Integer.valueOf(tokens[1]);
+			bid = Double.valueOf(tokens[2]);
+			sign1 = tokens[3];
+			sign2 = tokens[4];
+		} catch (NumberFormatException e) {
+			return;
+		}
+		
+		long time = validateSignatures(id, bid, sign1, sign2);
+		
+		boolean bidSuccessful = true;
+		
+		// validation unsuccessful
+		if (time < 0) bidSuccessful = false;
+		
+		
+		Auction auction = auManager.getAuctionById(id);
+		if (bidSuccessful && auction != null && time < auction.getEndTime().getTimeInMillis())
+			bidSuccessful = auManager.bid(user, auction, bid);
+		else
+			bidSuccessful = false;
+		
+		if (bidSuccessful) {
+			String s = String.format("Signed bid: Auction \"%s\" now at %.2f (%s)",
+									auction.getName(),
+									auction.getHighestBid(),
+									auction.getHighestBidder().getName());
+			logger.log(Level.INFO, s);
+		} else {
+			String auctionName = (auction == null) ? "(Not existing)" : auction.getName();
+			String s = String.format("Rejected signed bid: For auction \"%s\", %.2f (%s)",
+					auctionName, bid, user.getName());
+			logger.log(Level.INFO, s);
+		}
+	}
+	
+	private long validateSignatures(int id, double bid, String signature1, String signature2) {
+		long time1 = validateSignature(id, bid, signature1);
+		if (time1 < 0) return -1;
+		
+		long time2 = validateSignature(id, bid, signature2);
+		if (time2 < 0) return -2;
+		
+		return (time1 + time2) / 2;
+	}
+	
+	private long validateSignature(int id, double bid, String signature) {
+		String[] tokens = signature.split(":");
+		if (tokens.length != 3) return -1;
+		
+		long time;
+		String user;
+		byte[] sign;
+		
+		try {
+			user = tokens[0];
+			time = Long.parseLong(tokens[1]);
+			sign = Base64.decode(tokens[2]);
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+		
+		// reconstruct original !timestamp command
+		String timestamp = String.format("%s %d %f %d", TCPProtocol.RESPONSE_TIMESTAMP, id, bid, time);
+		
+		PublicKey key;
+		try {
+			key = getPublicKey(user);
+		} catch (IOException e) {
+			return -1;
+		}
+		
+		if (!SecurityUtils.verify(timestamp.getBytes(), sign, key))
+			return -1;
+		
+		return time;
 	}
 
 	private void setUdp(String[] tokens) {
@@ -283,7 +372,25 @@ public class ConnectionHandler implements Runnable {
 		
 		client.setUdpPort(udpPort);
 	}
+
+	private void listActiveUsers() {
+		String users = "";
+		
+		for (User u : usManager.getUsers()) {
+			if (u.isLoggedIn()) {
+				String ip = u.getClient().getInetAddress().getHostAddress();
+				int port = u.getTcpPort();
+				
+				String addr = String.format("%s:%d - %s", ip, port, u.getName());
+				users += addr + "\n";
+			}
+		}
+		
+		if (users.equals("")) users = TCPProtocol.RESPONSE_FAIL;
+		clManager.sendMessage(client, users);
+	}
 	
-	
-	
+	private PublicKey getPublicKey(String username) throws IOException {
+		return SecurityUtils.getPublicKey(clientKeyDir + username + ".pub.pem");	
+	}
 }

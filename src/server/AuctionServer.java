@@ -14,6 +14,8 @@ import java.security.PrivateKey;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import client.TCPProtocol;
+
 import server.bean.User;
 import server.service.AuctionManager;
 import server.service.ClientManager;
@@ -30,6 +32,9 @@ import billing.BillingServerSecure;
 
 
 public class AuctionServer {
+	private static final String CMD_EXIT      = TCPProtocol.CMD_EXIT;
+	private static final String CMD_CLOSE     = "!close";
+	private static final String CMD_RECONNECT = "!reconnect";
 	private static final Logger logger = Logger.getLogger("AuctionServer");
 	
 	private static final String registryProperties = "registry.properties";
@@ -45,9 +50,11 @@ public class AuctionServer {
 	private static AnalyticsServer analyticsServer;
 	
 	private static PrivateKey privateKey;
+	private static String serverKeyPath, clientKeyDir;
+	private static int tcpPort;
 	
 	public static void main(String[] args) {
-		int tcpPort = 0;
+		tcpPort = 0;
 		
 		// Parse Arguments 
 		if (args.length < 5) {
@@ -64,8 +71,8 @@ public class AuctionServer {
 		String analyticsBindingName = args[1];
 		String billingBindingName = args[2];
 		
-		String serverKeyPath = args[3];
-		String clientKeyDir  = args[4];
+		serverKeyPath = args[3];
+		clientKeyDir  = args[4];
 		
 		getPrivateKey(serverKeyPath);
 		
@@ -82,6 +89,41 @@ public class AuctionServer {
 		usManager = new UserManagerImpl(clManager, wrappedAnalytics);
 		auManager = new AuctionManagerImpl(usManager, billingServer, wrappedAnalytics);
 		
+		acceptConnections();
+		
+		System.out.println("Server ready.");
+		
+		// close when pressing enter
+		try { prompt();
+		} catch (IOException e) {}
+
+		System.out.println("Shutting down...");
+		
+		shutdown();
+	}
+	
+	private static void prompt() throws IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		
+		String input;
+		while ((input = reader.readLine()) != null) {
+			input = input.trim();
+			
+			if (input.equals(CMD_EXIT)) {
+				return;
+			} else if (input.equals(CMD_CLOSE)) {
+				close();
+			} else if (input.equals(CMD_RECONNECT)) {
+				acceptConnections();
+			} else {
+				System.out.println("Unknown command");
+			}
+		}
+	}
+	
+	private static void acceptConnections() {
+		if (socket != null) return;
+		
 		// Create socket
 		try {
 			socket = new ServerSocket(tcpPort);
@@ -95,16 +137,6 @@ public class AuctionServer {
 				new ConnectionDispatcher(socket, clManager, usManager, auManager, privateKey, clientKeyDir);
 		Thread serverThread = new Thread(dispatcher);
 		serverThread.start();
-		
-		System.out.println("Server ready.");
-		
-		// close when pressing enter
-		try { System.in.read();
-		} catch (IOException e) {}
-
-		System.out.println("Shutting down...");
-		
-		shutdown();
 	}
 	
 	private static void connectExternalServers(String billingBindingName, String analyticsBindingName) throws AuctionException {
@@ -162,15 +194,22 @@ public class AuctionServer {
 		}
 	}
 	
-	private static void shutdown() {
-		try { socket.close();
+	private static void close() {
+		try {
+			if (socket != null) socket.close();
 		} catch (IOException e) {}
+		socket = null;
 		
 		// logout all users
 		for(User u : usManager.getUsers()) {
 			if (u.getClient() != null) usManager.logout(u);
 		}
+		
 		clManager.disconnectAll();
+	}
+	
+	private static void shutdown() {
+		close();
 		auManager.shutdown();
 	}
 }

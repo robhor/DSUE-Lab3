@@ -9,6 +9,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,6 +26,7 @@ import org.bouncycastle.openssl.PasswordFinder;
 
 public class SecurityUtils {
 	private static final String CIPHER = "RSA/NONE/OAEPWithSHA256AndMGF1Padding";
+	private static final String SIGNATURE_ALGO = "SHA512withRSA";
 	
 	private static final Logger logger = Logger.getLogger(SecurityUtils.class.getSimpleName());
 	
@@ -77,6 +80,42 @@ public class SecurityUtils {
 		}
 		
 		return null;
+	}
+	
+	public static byte[] sign(byte[] message, PrivateKey key) {
+		Signature s;
+		try {
+			s = Signature.getInstance(SIGNATURE_ALGO);
+			s.initSign(key);
+			s.update(message);
+			return s.sign();
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Signing failed: " + e.getMessage());
+		} catch (InvalidKeyException e) {
+			System.err.println("Signing failed: " + e.getMessage());
+		} catch (SignatureException e) {
+			System.err.println("Signing failed: " + e.getMessage());
+		}
+		
+		return null;
+	}
+	
+	public static boolean verify(byte[] message, byte[] signature, PublicKey key) {
+		Signature s;
+		try {
+			s = Signature.getInstance(SIGNATURE_ALGO);
+			s.initVerify(key);
+			s.update(message);
+			return s.verify(signature);
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Verifying signature failed: " + e.getMessage());
+		} catch (InvalidKeyException e) {
+			System.err.println("Verifying signature failed: " + e.getMessage());
+		} catch (SignatureException e) {
+			System.err.println("Verifying signature failed: " + e.getMessage());
+		}
+		
+		return false;
 	}
 	
 	

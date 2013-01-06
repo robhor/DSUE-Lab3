@@ -76,6 +76,8 @@ public class ClientManagerImpl implements ClientManager {
 
 	@Override
 	public void sendMessage(Client client, String message) {
+		if (client == null) throw new IllegalArgumentException("Cannot send a message to null!");
+		
 		synchronized (client) {
 			client.getChannel().send(message.getBytes());
 		}
@@ -104,14 +106,10 @@ public class ClientManagerImpl implements ClientManager {
 	}
 
 	@Override
-	public String receiveMessage(Client client) {
-		try {
-			String line = new String(client.getChannel().read());
-			return line;
-		} catch (IOException e) {
-			logger.log(Level.FINE, "Socket closed\n" + e);
-			return null;
-		}
+	public String receiveMessage(Client client) throws IOException {
+		byte[] line = client.getChannel().read();
+		if (line == null) throw new SocketException("Socket closed");
+		return new String(line);
 	}
 
 	@Override

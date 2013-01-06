@@ -89,13 +89,6 @@ public class AuctionManagerImpl implements AuctionManager {
 	public void closeAuction(Auction auction) {
 		if (auction == null) return;
 		
-		writeLock.lock();
-		try {
-			auctions.remove(auction.getId());
-		} finally {
-			writeLock.unlock();
-		}
-		
 		User winner;
 		String msg = null;
 		double highestBid;
@@ -104,7 +97,6 @@ public class AuctionManagerImpl implements AuctionManager {
 			winner = auction.getHighestBidder();
 			highestBid = auction.getHighestBid();
 		}
-
 		
 		// notify winner
 		if (winner != null) {
@@ -136,7 +128,11 @@ public class AuctionManagerImpl implements AuctionManager {
 	public Collection<Auction> getAuctions() {
 		readLock.lock();
 		try {
-			return new ArrayList<Auction>(auctions.values());
+			ArrayList<Auction> list = new ArrayList<Auction>();
+			for (Auction a : auctions.values()) {
+				if (!a.hasEnded()) list.add(a);
+			}
+			return list;
 		} finally {
 			readLock.unlock();
 		}
