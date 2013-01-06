@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.Key;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
@@ -346,14 +347,60 @@ public class TCPProtocol {
 		return true;
 	}
 
-	private void listAuctions() throws IOException {
+	private boolean listAuctions() throws IOException {
+		return listAuctions(true);
+	}
+	
+	private boolean listAuctions(boolean retry) throws IOException {
 		clManager.sendMessage(server, CMD_LIST);
-		String msg = clManager.receiveMessage(server);
 		
-		int auctions = Integer.valueOf(msg);
+		String status = clManager.receiveMessage(server);
+		if (status == null) return false;
+		
+		if (!status.startsWith(RESPONSE_SUCCESS)) {
+			System.out.println("Listing failed. Check your shared key!");
+			return true;
+		}
+
+		String header = clManager.receiveMessage(server);
+		int auctions = Integer.valueOf(header);
+		StringBuilder listBuilder = new StringBuilder(); // whole list output without either count or HMAC
+		
 		for (int i = 0; i < auctions; i++) {
-			msg = clManager.receiveMessage(server);
-			System.out.println(msg);
+			String line = clManager.receiveMessage(server);
+			listBuilder.append(String.format("%s%n", line));
+		}
+		
+		String wholeList = listBuilder.toString();
+		String wholeMessage = String.format("%s%n%s%n%s", status, header, wholeList);
+		
+		if (isLoggedIn() && !verifyHmac(wholeMessage)) {
+			if (retry) {
+				System.out.println("Failed to verify the response from the server. Retry...");
+				return listAuctions(false);
+			} else {
+				System.out.println("Verification failed again. Abort.");
+				return true;
+			}
+		}
+		
+		System.out.print(wholeList);
+		return true;
+	}
+	
+	private boolean verifyHmac(String message) {
+		try {
+			String hmacKeyPath = clientKeyDir + user + ".key";
+			Key hmacKey = SecurityUtils.getClientKey(hmacKeyPath);
+			byte[] hmac = SecurityUtils.hmacSHA256(message.getBytes(), hmacKey);
+			
+			String hmac64 = clManager.receiveMessage(server);
+			byte[] serverHmac = Base64.decode(hmac64);
+
+			return Arrays.areEqual(hmac, serverHmac);
+		} catch (IOException e) {
+			logger.log(Level.INFO, "Shared HMAC key could not be read");
+			return false;
 		}
 	}
 	
@@ -379,7 +426,7 @@ public class TCPProtocol {
 			System.out.println(rec);
 		}
 	}
-
+	
 	private boolean createAuction(String input) throws IOException {
 		// !create <duration> <description>
 		if (!isLoggedIn()) {

@@ -1,5 +1,6 @@
 package util;
 
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -18,15 +19,19 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PasswordFinder;
+import org.bouncycastle.util.encoders.Hex;
 
 public class SecurityUtils {
 	private static final String CIPHER = "RSA/NONE/OAEPWithSHA256AndMGF1Padding";
 	private static final String SIGNATURE_ALGO = "SHA512withRSA";
+	private static final String HMAC_ALGORITHM = "HmacSHA256";
 	
 	private static final Logger logger = Logger.getLogger(SecurityUtils.class.getSimpleName());
 	
@@ -60,6 +65,22 @@ public class SecurityUtils {
 	 */
 	public static byte[] encryptRSA(byte[] message, Key key) {
 		return transformRSA(message, key, Cipher.ENCRYPT_MODE);
+	}
+	
+	public static byte[] hmacSHA256(byte[] message, Key key) {
+		Mac hMac;
+		try {
+			hMac = Mac.getInstance(HMAC_ALGORITHM);
+			hMac.init(key);
+			hMac.update(message);
+			return hMac.doFinal();
+		} catch (NoSuchAlgorithmException e) {
+			logger.log(Level.SEVERE, "No such algorithm: " + e.getMessage());
+		} catch (InvalidKeyException e) {
+			logger.log(Level.SEVERE, "Invalid key: " + e.getMessage());
+		}
+		
+		return null;
 	}
 	
 	private static byte[] transformRSA(byte[] message, Key key, int mode) {
@@ -156,5 +177,15 @@ public class SecurityUtils {
 			logger.log(Level.SEVERE, "No such algorithm: " + e.getMessage());
 			return null;
 		}
+	}
+	
+	
+	public static Key getClientKey(String path) throws IOException {
+		byte[] keyBytes = new byte[1024];
+		FileInputStream fis = new FileInputStream(path);
+		fis.read(keyBytes);
+		fis.close();
+		byte[] input = Hex.decode(keyBytes);
+		return new SecretKeySpec(input, HMAC_ALGORITHM);
 	}
 }
