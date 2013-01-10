@@ -271,18 +271,20 @@ public class ConnectionHandler implements Runnable {
 			messageBuilder.append(String.format("%s%n", line));
 		}
 		
-		for (GroupBid b : groupBids) {
-			int auctionId = b.getAuctionId();
-			Auction auction = auManager.getAuctionById(auctionId);
-			String line = String.format("Group bid on %d. '%s' by %s %.2f - %d confirms remaining",
-				auction.getId(), 
-				auction.getName(), 
-				b.getUser().getName(), 
-				b.getAmount(), 
-				b.getConfirmsRemaining());
-
-			clManager.sendMessage(client, line);
-			messageBuilder.append(String.format("%s%n", line));
+		synchronized(theGroup) {
+			for (GroupBid b : groupBids) {
+				int auctionId = b.getAuctionId();
+				Auction auction = auManager.getAuctionById(auctionId);
+				String line = String.format("Group bid on %d. '%s' by %s %.2f - %d confirms remaining",
+					auction.getId(), 
+					auction.getName(), 
+					b.getUser().getName(), 
+					b.getAmount(), 
+					b.getConfirmsRemaining());
+	
+				clManager.sendMessage(client, line);
+				messageBuilder.append(String.format("%s%n", line));
+			}
 		}
 		
 		if (isLoggedIn()) {

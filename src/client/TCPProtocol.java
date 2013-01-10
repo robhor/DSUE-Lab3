@@ -278,9 +278,7 @@ public class TCPProtocol {
 		String pass;
 		try {
 			System.out.println("Enter pass phrase:");
-			// DEBUG
-			pass = "12345";
-			// pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
+			pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
 			userKey = SecurityUtils.getPrivateKey(clientKeyPath, pass);
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Private key could not be read");

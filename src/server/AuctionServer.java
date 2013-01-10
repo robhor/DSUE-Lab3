@@ -185,12 +185,6 @@ public class AuctionServer {
 	
 	private static void getPrivateKey(String path) {
 		try {
-			// TODO: remove debugging code
-			if (true) {
-				privateKey = SecurityUtils.getPrivateKey(path, "23456");
-				return;
-			}
-			
 			System.out.println("Enter pass phrase:");
 			String pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
 			privateKey = SecurityUtils.getPrivateKey(path, pass);

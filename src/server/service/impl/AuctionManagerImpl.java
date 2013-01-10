@@ -104,6 +104,10 @@ public class AuctionManagerImpl implements AuctionManager {
 			highestBid = auction.getHighestBid();
 		}
 		
+		if (auction.hasGroupBid()) {
+			theGroup.giveBudget();
+		}
+		
 		// notify winner
 		if (winner != null) {
 			msg = String.format("%s %s %.2f %s", UDPProtocol.AUCTION_END, winner.getName(), highestBid, auction.getName());
@@ -183,6 +187,12 @@ public class AuctionManagerImpl implements AuctionManager {
 	 * Initiates a GroupBid, blocking if necessary.
 	 */
 	public boolean groupBid(int auctionId, User bidder, double amount) {
+		Auction auction = getAuctionById(auctionId);
+		if (!auction.hasGroupBid()) {
+			auction.setGroupBid(true);
+			theGroup.takeBudget();
+		}
+		
 		BidExecuter bidExecuter = new BidExecuter(this, usManager);
 		GroupBid bid = new GroupBid(auctionId, bidder, amount, bidExecuter);
 		bidExecuter.setGroupBid(bid);
@@ -196,21 +206,23 @@ public class AuctionManagerImpl implements AuctionManager {
 	 * @throws AuctionException if the GroupBid was not found or has already been confirmed
 	 */
 	public boolean confirmBid(User confirmer, Auction auction, double amount, String initiator) throws AuctionException {
-		GroupBid groupBid = theGroup.findBid(auction.getId(), amount, initiator);
+		GroupBid groupBid;
 		
-		if (null == groupBid) {
-			throw new AuctionException("GroupBid not found");
-		}
-		
-		if (!confirmAllowed(confirmer, groupBid)) {
-			logger.log(Level.INFO, "Confirm not allowed.");
-			return false;
+		synchronized(theGroup) {
+			groupBid = theGroup.findBid(auction.getId(), amount, initiator);
+			
+			if (null == groupBid) {
+				throw new AuctionException("GroupBid not found");
+			}
+			
+			if (!confirmAllowed(confirmer, groupBid)) {
+				return false;
+			}
 		}
 		
 		confirmer.setBlocked(true);
 		boolean success = groupBid.confirm(confirmer);
 		confirmer.setBlocked(false);
-		logger.log(Level.INFO, "GroupBid confirm success=" + Boolean.toString(success));
 		
 		if (success) {
 			BidExecuter be = groupBid.getBidExecuter();
@@ -228,24 +240,26 @@ public class AuctionManagerImpl implements AuctionManager {
 		}
 		
 		// check the group: at least one group bid must remain with unblocked candidates 
-		for (GroupBid b : theGroup.getGroupBids()) {
-			int required = b.getConfirmsRemaining();
-			
-			if (b == groupBid) {
-				required--;
-				if (required <= 0) {
-					return true;
-				}
-			}
-			
-			for (User u : theGroup.getMembers()) {
-				if ((u == confirmer) || (u == b.getUser()) || (u.isBlocked())) {
-					continue;
+		synchronized(theGroup) {
+			for (GroupBid b : theGroup.getGroupBids()) {
+				int required = b.getConfirmsRemaining();
+				
+				if (b == groupBid) {
+					required--;
+					if (required <= 0) {
+						return true;
+					}
 				}
 				
-				required--;
-				if (required <= 0) {
-					return true;
+				for (User u : theGroup.getMembers()) {
+					if ((u == confirmer) || (u == b.getUser()) || (u.isBlocked())) {
+						continue;
+					}
+					
+					required--;
+					if (required <= 0) {
+						return true;
+					}
 				}
 			}
 		}

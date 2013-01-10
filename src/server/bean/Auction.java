@@ -9,6 +9,7 @@ public class Auction {
 	private Calendar endTime;
 	private User highestBidder;
 	private double highestBid;
+	private boolean groupBidFlag; 
 	
 	public int getId() {
 		return id;
@@ -49,6 +50,18 @@ public class Auction {
 	
 	public boolean hasEnded() {
 		return getEndTime().getTimeInMillis() <= System.currentTimeMillis();
+	}
+	/**
+	 * @return the hasGroupBid
+	 */
+	public boolean hasGroupBid() {
+		return groupBidFlag;
+	}
+	/**
+	 * @param hasGroupBid the hasGroupBid to set
+	 */
+	public void setGroupBid(boolean hasGroupBid) {
+		this.groupBidFlag = hasGroupBid;
 	}
 	
 }
