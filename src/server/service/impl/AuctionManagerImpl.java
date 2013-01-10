@@ -13,7 +13,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import server.AuctionException;
+import server.BidExecuter;
 import server.bean.Auction;
+import server.bean.Group;
+import server.bean.GroupBid;
 import server.bean.User;
 import server.service.AuctionManager;
 import server.service.UserManager;
@@ -23,10 +27,11 @@ import analytics.event.Event;
 import billing.BillingServerSecure;
 import client.UDPProtocol;
 
-public class AuctionManagerImpl implements AuctionManager {
+public class AuctionManagerImpl implements AuctionManager {	
 	private Logger logger = Logger.getLogger(AuctionManagerImpl.class.getSimpleName());
 	private AtomicInteger auctionID; /** Next free auction id */
 	private TreeMap<Integer, Auction> auctions;
+	private Group theGroup;
 	
 	private UserManager usManager;
 	private Timer timer;
@@ -38,13 +43,14 @@ public class AuctionManagerImpl implements AuctionManager {
 	private Lock readLock = readWriteLock.readLock();
 	private Lock writeLock = readWriteLock.writeLock();
 
-	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer, AnalyticsServerWrapper analyticsServer) {
+	public AuctionManagerImpl(UserManager usManager, BillingServerSecure billingServer, AnalyticsServerWrapper analyticsServer, Group group) {
 		this.usManager = usManager;
 		this.billingServer = billingServer;
 		this.analyticsServer = analyticsServer;
 		
 		auctionID = new AtomicInteger();
 		auctions = new TreeMap<Integer, Auction>();
+		theGroup = group;
 		
 		timer = new Timer();
 	}
@@ -137,6 +143,11 @@ public class AuctionManagerImpl implements AuctionManager {
 			readLock.unlock();
 		}
 	}
+	
+	@Override
+	public Group getTheGroup() {
+		return theGroup;
+	}
 
 	@Override
 	public boolean bid(User bidder, Auction auction, double amount) {
@@ -167,8 +178,81 @@ public class AuctionManagerImpl implements AuctionManager {
 		
 		return true;
 	}
+
+	/**
+	 * Initiates a GroupBid, blocking if necessary.
+	 */
+	public boolean groupBid(int auctionId, User bidder, double amount) {
+		BidExecuter bidExecuter = new BidExecuter(this, usManager);
+		GroupBid bid = new GroupBid(auctionId, bidder, amount, bidExecuter);
+		bidExecuter.setGroupBid(bid);
+		theGroup.addBid(bid);
+		return true;
+	}
 	
+	/**
+	 * Confirms a group bid.
+	 * @return true, if bid was successful, false on timeout or if the confirm would cause a deadlock.
+	 * @throws AuctionException if the GroupBid was not found or has already been confirmed
+	 */
+	public boolean confirmBid(User confirmer, Auction auction, double amount, String initiator) throws AuctionException {
+		GroupBid groupBid = theGroup.findBid(auction.getId(), amount, initiator);
+		
+		if (null == groupBid) {
+			throw new AuctionException("GroupBid not found");
+		}
+		
+		if (!confirmAllowed(confirmer, groupBid)) {
+			logger.log(Level.INFO, "Confirm not allowed.");
+			return false;
+		}
+		
+		confirmer.setBlocked(true);
+		boolean success = groupBid.confirm(confirmer);
+		confirmer.setBlocked(false);
+		logger.log(Level.INFO, "GroupBid confirm success=" + Boolean.toString(success));
+		
+		if (success) {
+			BidExecuter be = groupBid.getBidExecuter();
+			String confirmerMessage = be.getConfirmerMessage();
+			usManager.sendMessage(confirmer, confirmerMessage);
+		}
+		
+		return success;
+	}
 	
+	private boolean confirmAllowed(User confirmer, GroupBid groupBid) {
+		// a user cannot confirm her own groupBid
+		if (confirmer == groupBid.getUser()) {
+			return false;
+		}
+		
+		// check the group: at least one group bid must remain with unblocked candidates 
+		for (GroupBid b : theGroup.getGroupBids()) {
+			int required = b.getConfirmsRemaining();
+			
+			if (b == groupBid) {
+				required--;
+				if (required <= 0) {
+					return true;
+				}
+			}
+			
+			for (User u : theGroup.getMembers()) {
+				if ((u == confirmer) || (u == b.getUser()) || (u.isBlocked())) {
+					continue;
+				}
+				
+				required--;
+				if (required <= 0) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+
 	private class AuctionEndTask extends TimerTask {
 		private Auction auction;
 		
@@ -183,7 +267,6 @@ public class AuctionManagerImpl implements AuctionManager {
 		}
 		
 	}
-
 
 	@Override
 	public void shutdown() {

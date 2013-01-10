@@ -80,6 +80,9 @@ public class ClientManagerImpl implements ClientManager {
 		
 		synchronized (client) {
 			client.getChannel().send(message.getBytes());
+			
+			// DEBUG
+			// logger.log(Level.INFO, String.format("TO %s: %s", client.getUdpPort(), message));
 		}
 	}
 
@@ -109,6 +112,10 @@ public class ClientManagerImpl implements ClientManager {
 	public String receiveMessage(Client client) throws IOException {
 		byte[] line = client.getChannel().read();
 		if (line == null) throw new SocketException("Socket closed");
+		
+		// DEBUG
+		// logger.log(Level.INFO, String.format("FROM %s: %s", client.getUdpPort(), new String(line)));
+		
 		return new String(line);
 	}
 

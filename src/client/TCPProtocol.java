@@ -41,6 +41,8 @@ public class TCPProtocol {
 	public static final String CMD_CREATE       = "!create";
 	public static final String CMD_BID          = "!bid";
 	public static final String CMD_SIGNED_BID   = "!signedBid";
+	public static final String CMD_GROUP_BID    = "!groupBid";
+	public static final String CMD_CONFIRM      = "!confirm";
 	public static final String CMD_EXIT         = "!end";
 	public static final String CMD_UDP          = "!udp";
 	public static final String CMD_ACTIVE_USERS = "!getClientList";
@@ -51,6 +53,9 @@ public class TCPProtocol {
 	public static final String RESPONSE_FAIL       = "!fail";
 	public static final String RESPONSE_SUCCESS    = "!ok";
 	public static final String RESPONSE_NO_AUCTION = "!no-auction";
+	public static final String RESPONSE_BLOCK      = "!block";
+	public static final String RESPONSE_CONFIRMED  = "!confirmed";
+	public static final String RESPONSE_REJECTED   = "!rejected";
 	
 	private Logger logger = Logger.getLogger(TCPProtocol.class.getSimpleName());
 	
@@ -205,6 +210,10 @@ public class TCPProtocol {
 				createAuction(input);
 			} else if (token.equals(CMD_BID)) {
 				bid(input);
+			} else if (token.equals(CMD_GROUP_BID)) {
+				groupBid(input);
+			} else if (token.equals(CMD_CONFIRM)) {
+				confirm(input);
 			} else if (token.equals(CMD_ACTIVE_USERS)) {
 				listActiveUsers();
 			} else {
@@ -269,7 +278,9 @@ public class TCPProtocol {
 		String pass;
 		try {
 			System.out.println("Enter pass phrase:");
-			pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
+			// DEBUG
+			pass = "12345";
+			// pass = new BufferedReader(new InputStreamReader(System.in)).readLine();
 			userKey = SecurityUtils.getPrivateKey(clientKeyPath, pass);
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Private key could not be read");
@@ -485,7 +496,10 @@ public class TCPProtocol {
 	private void bid(String input) throws IOException {
 		// parse
 		String[] tokens = input.split(" ");
-		if (tokens.length < 3) return;
+		if (tokens.length != 3) {
+			System.err.println("Wrong number of parameters!");
+			return;
+		}
 		
 		int id;
 		double bid;
@@ -591,6 +605,111 @@ public class TCPProtocol {
 		}
 	}
 
+	private void groupBid(String input) throws IOException {
+		// parse
+		String[] tokens = input.split(" ");
+		if (tokens.length != 3) {
+			System.err.println("Wrong number of parameters!");
+			return;
+		}
+		
+		int auctionId;
+		double amount;
+		try {
+			auctionId =  Integer.valueOf(tokens[1]);
+			amount = Double.valueOf(tokens[2]);
+		} catch (NumberFormatException e) {
+			System.err.println("Not a valid value!");
+			return;
+		}
+
+		// send bid to server
+		String message = String.format("%s %d %f", CMD_GROUP_BID, auctionId, amount);
+		clManager.sendMessage(server, message);
+		
+		// receive response
+		String response = clManager.receiveMessage(server);
+		if (response == null) return;
+		while (response.startsWith(RESPONSE_BLOCK)) {
+			System.out.println("Waiting for group bid rights to become available...");
+			response = clManager.receiveMessage(server);
+		}
+		tokens = response.split(" ");
+		if (response.equals(RESPONSE_NO_AUCTION)) {
+			System.out.println("No auction with that id exists");
+			return;
+		}
+		
+		if (response.startsWith(RESPONSE_FAIL) && tokens.length == 1) {
+			System.out.println("Bidding on auction failed");
+			return;
+		}
+		String responseAmount = tokens[1];
+		String responseAuction = tokens[2];
+		for (int i = 3; i < tokens.length; i++)
+			responseAuction += tokens[i];
+		
+		String msg = null;
+		if (response.startsWith(RESPONSE_SUCCESS)) {
+			msg = String.format("You successfully bid with %s on '%s'.", responseAmount, responseAuction);
+		} else {
+			msg = String.format("You unsuccessfully bid with %.2f on '%s'. Current highest bid is %s.", amount, responseAuction, responseAmount);
+		}
+		System.out.println(msg);
+	}
+
+	/**
+	 * The client communicates confirmation of a bid to the server.
+	 */
+	private void confirm(String input) throws IOException {
+		// parse
+		String[] tokens = input.split(" ");
+		if (tokens.length != 4) {
+			System.err.println("Wrong number of parameters!");
+			return;
+		}
+		
+		int auctionId;
+		double amount;
+		String initiator;
+		try {
+			auctionId =  Integer.valueOf(tokens[1]);
+			amount = Double.valueOf(tokens[2]);
+			initiator = tokens[3];
+		} catch (NumberFormatException e) {
+			System.err.println("Not a valid value!");
+			return;
+		}
+
+		// send confirm to server
+		String message = String.format("%s %d %f %s", CMD_CONFIRM, auctionId, amount, initiator);
+		clManager.sendMessage(server, message);
+		
+		// receive response
+		String response = clManager.receiveMessage(server);
+		if (response == null) return;
+		while (response.startsWith(RESPONSE_BLOCK)) {
+			System.out.println("Please wait for the bid to be fully confirmed...");
+			response = clManager.receiveMessage(server);
+		}
+		tokens = response.split(" ");
+		if (response.equals(RESPONSE_REJECTED)) {
+			System.out.format("Rejected: %s%n", response.substring(RESPONSE_REJECTED.length() + 1));
+			return;
+		}
+		
+		if (response.startsWith(RESPONSE_FAIL) && tokens.length == 1) {
+			System.out.println("Bidding on auction failed");
+			return;
+		}
+
+		if (response.startsWith(RESPONSE_CONFIRMED)) {
+			System.out.println("Successfully confirmed.");
+		} else {
+			System.out.println("Bid unsuccessful.");
+		}
+	}
+	
 	private void sendSignedBids() {
 		synchronized (signedBids) {
 			String saved = signedBids.get(user);

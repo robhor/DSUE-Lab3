@@ -9,6 +9,7 @@ import analytics.event.Event;
 import analytics.event.UserEvent;
 
 import server.bean.Client;
+import server.bean.Group;
 import server.bean.User;
 import server.service.ClientManager;
 import server.service.UserManager;
@@ -16,13 +17,15 @@ import server.service.UserManager;
 public class UserManagerImpl implements UserManager {
 	private ClientManager clManager;
 	private AnalyticsServerWrapper analyticsServer;
+	private Group theGroup;
 	
 	private ConcurrentHashMap<String, User> users;
 	private HashMap<User, ArrayList<String>> pendingNotifications;
 	
-	public UserManagerImpl(ClientManager clManager, AnalyticsServerWrapper analyticsServer) {
+	public UserManagerImpl(ClientManager clManager, AnalyticsServerWrapper analyticsServer, Group group) {
 		this.clManager = clManager;
 		this.analyticsServer = analyticsServer;
+		this.theGroup = group;
 		users = new ConcurrentHashMap<String, User>();
 		pendingNotifications = new HashMap<User, ArrayList<String>>();
 	}
@@ -85,6 +88,7 @@ public class UserManagerImpl implements UserManager {
 		if (user == null) {
 			user = new User();
 			user.setName(username);
+			theGroup.addMember(user);
 		}
 		
 		return user;

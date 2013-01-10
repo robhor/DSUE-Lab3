@@ -6,16 +6,20 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.crypto.SecretKey;
 
+import org.apache.log4j.lf5.LogLevel;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Base64;
 
 import server.bean.Auction;
 import server.bean.Client;
+import server.bean.Group;
+import server.bean.GroupBid;
 import server.bean.User;
 import server.service.AuctionManager;
 import server.service.ClientManager;
@@ -32,17 +36,19 @@ public class ConnectionHandler implements Runnable {
 	private ClientManager clManager;
 	private UserManager usManager;
 	private AuctionManager auManager;
+	private Group theGroup;
 	private PrivateKey privateKey;
 	private String clientKeyDir;
 	
 	public ConnectionHandler(Client client, ClientManager clManager, UserManager usManager,
-							 AuctionManager auManager, PrivateKey privateKey, String clientKeyDir) {
+							 AuctionManager auManager, Group group, PrivateKey privateKey, String clientKeyDir) {
 		this.client = client;
 		this.clManager = clManager;
 		this.usManager = usManager;
 		this.auManager = auManager;
 		this.privateKey = privateKey;
 		this.clientKeyDir = clientKeyDir;
+		this.theGroup = group;
 	}
 
 	@Override
@@ -75,6 +81,10 @@ public class ConnectionHandler implements Runnable {
 			listAuctions(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_BID)) {
 			bid(tokens);
+		} else if (cmd.equals(TCPProtocol.CMD_GROUP_BID)) {
+			groupBid(tokens);
+		} else if (cmd.equals(TCPProtocol.CMD_CONFIRM)) {
+			confirm(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_SIGNED_BID)) {
 			signedBid(tokens);
 		} else if (cmd.equals(TCPProtocol.CMD_UDP)) {
@@ -235,11 +245,12 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		Collection<Auction> list = auManager.getAuctions();
+		List<GroupBid> groupBids = theGroup.getGroupBids();
 		SimpleDateFormat sdf = new SimpleDateFormat();
 
 		StringBuilder messageBuilder = new StringBuilder();
 		
-		String header = String.valueOf(list.size());
+		String header = String.valueOf(list.size() + groupBids.size());
 		clManager.sendMessage(client, TCPProtocol.RESPONSE_SUCCESS);	
 		clManager.sendMessage(client, header);
 
@@ -260,6 +271,20 @@ public class ConnectionHandler implements Runnable {
 			messageBuilder.append(String.format("%s%n", line));
 		}
 		
+		for (GroupBid b : groupBids) {
+			int auctionId = b.getAuctionId();
+			Auction auction = auManager.getAuctionById(auctionId);
+			String line = String.format("Group bid on %d. '%s' by %s %.2f - %d confirms remaining",
+				auction.getId(), 
+				auction.getName(), 
+				b.getUser().getName(), 
+				b.getAmount(), 
+				b.getConfirmsRemaining());
+
+			clManager.sendMessage(client, line);
+			messageBuilder.append(String.format("%s%n", line));
+		}
+		
 		if (isLoggedIn()) {
 			sendHmac(messageBuilder.toString(), hmacKey);
 		}
@@ -270,7 +295,7 @@ public class ConnectionHandler implements Runnable {
 		String hmac64 = new String(Base64.encode(hmac));
 		clManager.sendMessage(client, hmac64);
 	}
-	
+
 	private void bid(String[] tokens) {
 		// !bid #id #amount
 		
@@ -305,6 +330,81 @@ public class ConnectionHandler implements Runnable {
 		String msg = (success) ? TCPProtocol.RESPONSE_SUCCESS : TCPProtocol.RESPONSE_FAIL;
 		msg += String.format(" %.2f %s", auction.getHighestBid(), auction.getName());
 		usManager.sendMessage(user, msg);
+	}
+
+	private void groupBid(String[] tokens) {
+		// !groupBid #id #amount
+		
+		// need to be logged in
+		if (!isLoggedIn()) {
+			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		int id;
+		double amount;
+		try {
+			id = Integer.valueOf(tokens[1]);
+			amount = Double.valueOf(tokens[2]);
+		} catch(NumberFormatException e) {
+			usManager.sendMessage(user, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		if (amount < 0.01) {
+			usManager.sendMessage(user, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		Auction auction = auManager.getAuctionById(id);
+		if (auction == null || auction.hasEnded()) {
+			usManager.sendMessage(user, TCPProtocol.RESPONSE_NO_AUCTION);
+			return;
+		}
+
+		usManager.sendMessage(user, TCPProtocol.RESPONSE_BLOCK);
+		
+		auManager.groupBid(auction.getId(), user, amount);
+		String msg = String.format("%s %.2f %s", TCPProtocol.RESPONSE_SUCCESS, amount, auction.getName());
+		usManager.sendMessage(user, msg);
+	}
+
+	private void confirm(String[] tokens) {
+		// !confirm #id #amount #user
+		
+		// need to be logged in
+		if (!isLoggedIn()) {
+			clManager.sendMessage(client, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		int id;
+		double amount;
+		String initiator;
+		try {
+			id = Integer.valueOf(tokens[1]);
+			amount = Double.valueOf(tokens[2]);
+			initiator = tokens[3];
+		} catch(NumberFormatException e) {
+			usManager.sendMessage(user, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+
+		Auction auction = auManager.getAuctionById(id);
+		boolean success = false;
+		try {
+			success = auManager.confirmBid(user, auction, amount, initiator);
+		} catch (AuctionException e) {
+			logger.log(Level.INFO, "AuctionException: " + e.getMessage());
+			usManager.sendMessage(user, TCPProtocol.RESPONSE_FAIL);
+			return;
+		}
+		
+		// if not timeout, we already sent the confirm message to the client in auManager.confirm()
+		if (!success) {
+			String message = String.format("%s Bidding on '%s' failed.", TCPProtocol.RESPONSE_REJECTED, auction.getName());
+			usManager.sendMessage(user, message);
+		}
 	}
 
 	private void signedBid(String[] tokens) {

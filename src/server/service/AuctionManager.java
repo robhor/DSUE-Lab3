@@ -2,7 +2,9 @@ package server.service;
 
 import java.util.Collection;
 
+import server.AuctionException;
 import server.bean.Auction;
+import server.bean.Group;
 import server.bean.User;
 
 /**
@@ -31,6 +33,11 @@ public interface AuctionManager {
 	Collection<Auction> getAuctions();
 	
 	/**
+	 * @return the group
+	 */
+	Group getTheGroup();
+	
+	/**
 	 * @return the auction with the given id
 	 *         or null if it does not exist
 	 */
@@ -44,6 +51,19 @@ public interface AuctionManager {
 	 * @return true, if bid was successful
 	 */
 	boolean bid(User bidder, Auction auction, double amount);
+	
+	/**
+	 * Initiates a GroupBid, blocking if necessary.
+	 * @return true, if bid was successful
+	 */
+	boolean groupBid(int auctionId, User bidder, double amount);
+	
+	/**
+	 * Confirms a group bid.
+	 * @return true, if bid was successful
+	 * @throws AuctionException if the GroupBid was not found
+	 */
+	boolean confirmBid(User confirmer, Auction auction, double amount, String initiator) throws AuctionException;
 	
 	/**
 	 * Prepares for system shutdown

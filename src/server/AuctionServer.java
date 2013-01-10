@@ -16,6 +16,7 @@ import java.util.logging.Logger;
 
 import client.TCPProtocol;
 
+import server.bean.Group;
 import server.bean.User;
 import server.service.AuctionManager;
 import server.service.ClientManager;
@@ -42,6 +43,7 @@ public class AuctionServer {
 	private static final String billingServerPass = "secure password";
 	
 	private static ServerSocket socket;
+	private static Group theGroup;
 	private static AuctionManager auManager;
 	private static UserManager usManager;
 	private static ClientManager clManager;
@@ -84,10 +86,11 @@ public class AuctionServer {
 		}
 		AnalyticsServerWrapper wrappedAnalytics = new AnalyticsServerWrapper(analyticsServer);
 		
-		// Create Managers
+		// Create Managers etc.
+		theGroup = new Group();
 		clManager = new ClientManagerImpl();
-		usManager = new UserManagerImpl(clManager, wrappedAnalytics);
-		auManager = new AuctionManagerImpl(usManager, billingServer, wrappedAnalytics);
+		usManager = new UserManagerImpl(clManager, wrappedAnalytics, theGroup);
+		auManager = new AuctionManagerImpl(usManager, billingServer, wrappedAnalytics, theGroup);
 		
 		acceptConnections();
 		
@@ -134,7 +137,7 @@ public class AuctionServer {
 		
 		// Accept connections
 		ConnectionDispatcher dispatcher = 
-				new ConnectionDispatcher(socket, clManager, usManager, auManager, privateKey, clientKeyDir);
+				new ConnectionDispatcher(socket, clManager, usManager, auManager, theGroup, privateKey, clientKeyDir);
 		Thread serverThread = new Thread(dispatcher);
 		serverThread.start();
 	}

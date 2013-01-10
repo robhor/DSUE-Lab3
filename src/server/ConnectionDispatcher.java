@@ -6,6 +6,7 @@ import java.security.PrivateKey;
 import java.util.concurrent.ExecutorService;
 
 import server.bean.Client;
+import server.bean.Group;
 import server.service.AuctionManager;
 import server.service.ClientManager;
 import server.service.UserManager;
@@ -20,15 +21,17 @@ public class ConnectionDispatcher implements Runnable {
 	private ClientManager  clManager;
 	private UserManager    usManager;
 	private AuctionManager auManager;
+	private Group          theGroup;
 	private PrivateKey     privateKey;
 	private String         clientKeyDir;
 	
 	public ConnectionDispatcher(ServerSocket socket, ClientManager clManager, UserManager usManager,
-								AuctionManager auManager, PrivateKey privateKey, String clientKeyDir) {
+								AuctionManager auManager, Group group, PrivateKey privateKey, String clientKeyDir) {
 		this.socket = socket;
 		this.clManager = clManager;
 		this.usManager = usManager;
 		this.auManager = auManager;
+		this.theGroup = group;
 		this.privateKey = privateKey;
 		this.clientKeyDir = clientKeyDir;
 	}
@@ -45,7 +48,7 @@ public class ConnectionDispatcher implements Runnable {
 				
 				// create a Runnable for handling this client
 				ConnectionHandler handler = new ConnectionHandler(client, clManager, usManager,
-																  auManager, privateKey, clientKeyDir);
+																  auManager, theGroup, privateKey, clientKeyDir);
 				
 				// To the Thread Pool with it!
 				executor.execute(handler);

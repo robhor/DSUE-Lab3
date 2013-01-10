@@ -4,6 +4,7 @@ public class User {
 	private String name;
 	private Client client;
 	private int tcpPort;
+	private volatile boolean blocked;
 	
 	public String getName() {
 		return name;
@@ -11,6 +12,7 @@ public class User {
 	public void setName(String name) {
 		this.name = name;
 	}
+	
 	public Client getClient() {
 		return client;
 	}
@@ -29,4 +31,10 @@ public class User {
 		this.tcpPort = tcpPort;
 	}
 	
+	public boolean isBlocked() {
+		return blocked;
+	}
+	public void setBlocked(boolean blocked) {
+		this.blocked = blocked;
+	}
 }

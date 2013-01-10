@@ -2,6 +2,8 @@ package client;
 
 public class UDPProtocol {
 	public static final String OVERBID = "!new-bid";
+	public static final String CONFIRMED = "!confirmed";
+	public static final String REJECTED = "!rejected";
 	public static final String AUCTION_END = "!auction-ended";
 	
 	private String user;
@@ -14,7 +16,10 @@ public class UDPProtocol {
 		
 		if (tokens[0].equals(OVERBID)) {
 			output = String.format("You have been overbid on '%s'", message.substring(OVERBID.length()+1));
-			
+		} else if (tokens[0].equals(CONFIRMED)) {
+			output = String.format("Your bid on '%s' has been confirmed.", message.substring(CONFIRMED.length()+1));
+		} else if (tokens[0].equals(REJECTED)) {
+			output = String.format("Your bid on '%s' has been rejected.", message.substring(REJECTED.length()+1));
 		} else if (tokens[0].equals(AUCTION_END)) {
 			if(tokens.length < 4) return null;
 			String auction = "";
